@@ -1,0 +1,37 @@
+{% extends "workspace/base.html" %}
+{% block title %}Budgets{% endblock %}
+{% block page_title %}Budget Allocation{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Budget plans</h2>
+        <a href="{% url 'budget_add' %}" class="button">Create budget</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Funding source</th>
+                    <th>Total amount</th>
+                    <th>Planned</th>
+                    <th>Remaining</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                    <tr>
+                        <td><a href="{% url 'budget_detail' plan.pk %}">{{ plan.title }}</a></td>
+                        <td>{{ plan.funding_source|default:"-" }}</td>
+                        <td>{{ plan.total_amount }} {{ plan.currency }}</td>
+                        <td><span class="budget-money">{{ plan.planned_total }}</span></td>
+                        <td><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount }}</span></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No budget plans yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

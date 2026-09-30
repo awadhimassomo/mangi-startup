@@ -1,0 +1,57 @@
+{% extends "workspace/base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block page_title %}Contacts{% endblock %}
+{% block content %}
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <form method="get" style="display:flex;gap:0.5rem;flex:1;max-width:380px;">
+        <input type="search" name="q" value="{{ q }}" placeholder="Search name, email, role, funder…"
+               class="form-control" style="flex:1;">
+        <button type="submit" class="button button-secondary button-sm">Search</button>
+        {% if q %}<a href="{% url 'contact_list' %}" class="button button-secondary button-sm">Clear</a>{% endif %}
+    </form>
+    <a href="{% url 'contact_add' %}" class="button">Add contact</a>
+</div>
+
+<div class="panel">
+    {% if contacts %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Email / Phone</th>
+                <th>Linked opportunity</th>
+                <th>Last interaction</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td><a href="{% url 'contact_detail' contact.pk %}">{{ contact.name }}</a></td>
+                <td class="muted">{{ contact.role|default:"—" }}</td>
+                <td>
+                    {% if contact.email %}<div><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></div>{% endif %}
+                    {% if contact.phone %}<div class="muted small">{{ contact.phone }}</div>{% endif %}
+                    {% if not contact.email and not contact.phone %}—{% endif %}
+                </td>
+                <td>
+                    {% if contact.linked_opportunity %}
+                        <a href="{{ contact.linked_opportunity.get_absolute_url }}">{{ contact.linked_opportunity.name }}</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="muted">{{ contact.last_interaction_date|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'contact_edit' contact.pk %}" class="button button-secondary button-sm">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="muted" style="padding:1.5rem 0;">
+            {% if q %}No contacts match "{{ q }}".{% else %}No contacts yet. <a href="{% url 'contact_add' %}">Add the first one.</a>{% endif %}
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

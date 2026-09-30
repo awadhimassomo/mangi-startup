@@ -1,0 +1,382 @@
+{% extends "workspace/base.html" %}
+{% load humanize %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Overview{% endblock %}
+{% block content %}
+
+{# ── Top KPI gradient cards ── #}
+<div class="kpi-row">
+    <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Funding Goal</p>
+            <p class="kpi-value">{{ funding_goal|floatformat:0|intcomma }}</p>
+            <p class="kpi-sub">Raised: {{ funds_raised|floatformat:0|intcomma }}</p>
+        </div>
+    </div>
+    <div class="kpi-card kpi-pink">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Active Pipeline</p>
+            <p class="kpi-value">{{ active_pipeline|floatformat:0|intcomma }}</p>
+            <p class="kpi-sub">{{ active_opportunities_count }} opportunit{{ active_opportunities_count|pluralize:"y,ies" }} still being pursued &bull; not yet won</p>
+        </div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Total Won</p>
+            <p class="kpi-value">{{ won_total|floatformat:0|intcomma }}</p>
+            <p class="kpi-sub">{{ won_count }} opportunit{{ won_count|pluralize:"y,ies" }} successfully closed &bull; Weighted pipeline: {{ weighted_pipeline|floatformat:0|intcomma }}</p>
+        </div>
+    </div>
+    <div class="kpi-card kpi-orange">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Readiness Score</p>
+            <p class="kpi-value">{{ readiness_score }}%</p>
+            <p class="kpi-sub">Investor readiness</p>
+        </div>
+    </div>
+</div>
+
+{# ── Stat chips row ── #}
+<div class="stat-chip-row">
+    <div class="stat-chip {% if upcoming_deadlines_count > 0 %}stat-chip-warn{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        <span><strong>{{ upcoming_deadlines_count }}</strong> deadline{{ upcoming_deadlines_count|pluralize }} in 30 days</span>
+    </div>
+    <div class="stat-chip {% if aging_advances_count > 0 %}stat-chip-danger{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <span><strong>{{ outstanding_advances_count }}</strong> open advance{{ outstanding_advances_count|pluralize }}{% if aging_advances_count %} &mdash; <span style="color:#dc2626;">{{ aging_advances_count }} aging</span>{% endif %}</span>
+    </div>
+    <div class="stat-chip stat-chip-success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>{{ wins_qtd }}</strong> win{{ wins_qtd|pluralize }} this quarter</span>
+    </div>
+    <div class="stat-chip {% if losses_qtd > 0 %}stat-chip-neutral{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        <span><strong>{{ losses_qtd }}</strong> loss{{ losses_qtd|pluralize:"es" }} this quarter</span>
+    </div>
+</div>
+
+{# ── Main body: charts + right column ── #}
+<div class="dash-body">
+    <div class="dash-main">
+
+        {# Charts #}
+        <div class="panel-grid-2" style="margin-bottom:1rem;">
+            <article class="panel chart-sm">
+                <div class="panel-header">
+                    <h2>Pipeline by status</h2>
+                    <a href="{% url 'opportunity_add' %}" class="button button-secondary button-sm">+ Add</a>
+                </div>
+                {{ status_chart|json_script:"status-chart-data" }}
+                <canvas id="statusChart"></canvas>
+            </article>
+            <article class="panel chart-sm">
+                <div class="panel-header">
+                    <h2>Monthly applications</h2>
+                </div>
+                {{ monthly_chart|json_script:"monthly-chart-data" }}
+                <canvas id="monthlyChart"></canvas>
+            </article>
+        </div>
+
+        {# Burn rate health #}
+        {% if grant_health %}
+        <article class="panel" style="margin-bottom:1rem;">
+            <div class="panel-header">
+                <h2>Burn Rate Health</h2>
+                <a href="{% url 'grant_list' %}" class="button button-secondary button-sm">All grants</a>
+            </div>
+            <div class="grant-health-grid">
+                {% for gh in grant_health %}
+                <a href="{{ gh.grant.get_absolute_url }}" class="grant-health-card health-{{ gh.health }}">
+                    <span class="grant-health-name">{{ gh.grant.name|truncatechars:26 }}</span>
+                    <div class="progress-bar-wrap" style="margin:0.35rem 0;">
+                        <div class="progress-bar {% if gh.health == 'danger' %}progress-danger{% elif gh.health == 'warning' %}progress-warning{% endif %} js-pct" data-width="{{ gh.utilization_pct }}"></div>
+                    </div>
+                    <span class="muted small">{{ gh.utilization_pct }}% utilized</span>
+                </a>
+                {% endfor %}
+            </div>
+        </article>
+        {% endif %}
+
+        {# Board preview #}
+        {% if posted_opportunities %}
+        <article class="panel" style="margin-bottom:1rem;">
+            <div class="panel-header">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;color:var(--accent);"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    New on the Opportunity Board
+                </h2>
+                <a href="{% url 'posted_opportunity_list' %}" class="button button-secondary button-sm">View all →</a>
+            </div>
+            <div class="board-dash-list">
+                {% for opp in posted_opportunities %}
+                <a href="{{ opp.get_absolute_url }}" class="board-dash-item">
+                    <div class="board-dash-left">
+                        <span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span>
+                        <span class="board-dash-title">{{ opp.title }}</span>
+                        <span class="muted small">{{ opp.funder_name }}</span>
+                    </div>
+                    <div class="board-dash-right">
+                        {% if opp.deadline %}
+                            <span class="muted small {% if opp.is_deadline_soon %}text-danger{% endif %}">Due {{ opp.deadline }}</span>
+                        {% endif %}
+                        <span class="board-status board-status-{{ opp.status }}">{{ opp.get_status_display }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </article>
+        {% endif %}
+
+        {# Upcoming deadlines table #}
+        <article class="panel">
+            <div class="panel-header">
+                <h2>Upcoming Deadlines</h2>
+                <a href="{% url 'opportunity_list' %}" class="button button-secondary button-sm">View all</a>
+            </div>
+            <table class="data-table">
+                <thead><tr><th>Opportunity</th><th>Status</th><th>Deadline</th></tr></thead>
+                <tbody>
+                    {% for item in upcoming_deadlines %}
+                    <tr class="{% if item.is_overdue or item.is_deadline_soon %}deadline-row-danger{% endif %}">
+                        <td><a href="{{ item.get_absolute_url }}">{{ item.name }}</a></td>
+                        <td><span class="badge badge-status-{{ item.status }}">{{ item.get_status_display }}</span></td>
+                        <td>
+                            <span class="badge {% if item.is_overdue %}badge-deadline-overdue{% elif item.is_deadline_soon %}badge-deadline-soon{% else %}badge-neutral{% endif %}">
+                                {% if item.is_overdue or item.is_deadline_soon %}&#9888; {% endif %}{{ item.deadline_date }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="muted" style="padding:1rem 0;">No upcoming deadlines — great!</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+    </div>
+
+    {# Right sidebar column #}
+    <div class="dash-side">
+
+        <article class="panel" style="margin-bottom:1rem;">
+            <div class="panel-header">
+                <h2>Readiness by category</h2>
+                <a href="{% url 'document_add' %}" class="button button-secondary button-sm">Upload</a>
+            </div>
+            {{ readiness_chart|json_script:"readiness-chart-data" }}
+            <canvas id="readinessChart" style="max-height:180px;"></canvas>
+        </article>
+
+        <article class="panel" style="margin-bottom:1rem;">
+            <div class="panel-header">
+                <h2>Open Tasks</h2>
+                <a href="{% url 'task_add' %}" class="button button-secondary button-sm">+ New</a>
+            </div>
+            <ul class="dash-side-list">
+                {% for task in assigned_tasks %}
+                <li>
+                    <span class="dash-side-dot {% if task.status == 'overdue' %}dot-danger{% else %}dot-neutral{% endif %}"></span>
+                    <div>
+                        <span class="dash-side-title">{{ task.title }}</span>
+                        {% if task.due_date %}<span class="muted small">{{ task.due_date }}</span>{% endif %}
+                    </div>
+                </li>
+                {% empty %}
+                <li class="muted small" style="padding:0.5rem 0;">No open tasks.</li>
+                {% endfor %}
+            </ul>
+        </article>
+
+        <article class="panel" style="margin-bottom:1rem;">
+            <div class="panel-header">
+                <h2>Next Actions</h2>
+            </div>
+            <ul class="dash-side-list">
+                {% for item in readiness.recommendations %}
+                <li>
+                    <span class="dash-side-dot dot-accent"></span>
+                    <span class="dash-side-title">{{ item }}</span>
+                </li>
+                {% empty %}
+                <li class="muted small" style="padding:0.5rem 0;">All caught up!</li>
+                {% endfor %}
+            </ul>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header"><h2>Missing Documents</h2></div>
+            <ul class="dash-side-list">
+                {% for document in missing_documents %}
+                <li>
+                    <span class="dash-side-dot dot-warn"></span>
+                    <div>
+                        <span class="dash-side-title">{{ document.title }}</span>
+                        <span class="muted small">{{ document.category.name }}</span>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="muted small" style="padding:0.5rem 0;">No missing documents.</li>
+                {% endfor %}
+            </ul>
+        </article>
+
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.js-pct').forEach(function(el){
+    el.style.width = (el.dataset.width || 0) + '%';
+});
+
+/* ── Status → colour map ── */
+const STATUS_COLORS = {
+    "researching":            "#94a3b8",
+    "qualifying":             "#f59e0b",
+    "application in progress":"#3b82f6",
+    "in progress":            "#3b82f6",
+    "submitted":              "#8b5cf6",
+    "under review":           "#ec4899",
+    "selected":               "#06b6d4",
+    "won":                    "#10b981",
+    "lost":                   "#ef4444",
+    "withdrawn":              "#6b7280",
+};
+const FALLBACK_COLORS = ["#EE4540","#C72C41","#A61F3A","#801336","#510A32","#f59e0b","#dc2626","#0369a1"];
+
+function statusColor(label, i) {
+    return STATUS_COLORS[label.toLowerCase()] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+}
+
+/* ── Status donut chart ── */
+(function () {
+    const raw = document.getElementById("status-chart-data");
+    if (!raw) return;
+    const d = JSON.parse(raw.textContent);
+    const canvas = document.getElementById("statusChart");
+    if (!canvas || !d.labels.length) return;
+
+    const total = d.values.reduce((a, b) => a + b, 0);
+    const bgColors = d.labels.map(statusColor);
+
+    /* Centre-text plugin */
+    const centerTextPlugin = {
+        id: "centerText",
+        afterDraw(chart) {
+            const { ctx, chartArea: { top, bottom, left, right } } = chart;
+            const cx = (left + right) / 2;
+            const cy = (top + bottom) / 2;
+            ctx.save();
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#20142C";
+            ctx.font = "700 1.6rem Manrope, Segoe UI, sans-serif";
+            ctx.fillText(total, cx, cy - 10);
+            ctx.fillStyle = "#5f4f60";
+            ctx.font = "600 0.7rem Manrope, Segoe UI, sans-serif";
+            ctx.fillText("opportunities", cx, cy + 12);
+            ctx.restore();
+        }
+    };
+
+    new Chart(canvas, {
+        type: "doughnut",
+        plugins: [centerTextPlugin],
+        data: {
+            labels: d.labels,
+            datasets: [{
+                data: d.values,
+                backgroundColor: bgColors,
+                borderColor: "#ffffff",
+                borderWidth: 3,
+                hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "72%",
+            plugins: {
+                legend: {
+                    display: true,
+                    position: "bottom",
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        borderRadius: 3,
+                        useBorderRadius: true,
+                        padding: 14,
+                        font: { size: 11.5, family: "Manrope, Segoe UI, sans-serif" },
+                        color: "#374151",
+                        generateLabels(chart) {
+                            const ds = chart.data.datasets[0];
+                            return chart.data.labels.map((lbl, i) => ({
+                                text: `${lbl}  ${ds.data[i]}`,
+                                fillStyle: ds.backgroundColor[i],
+                                strokeStyle: "transparent",
+                                index: i,
+                            }));
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const val = ctx.parsed;
+                            const pct = total ? ((val / total) * 100).toFixed(1) : 0;
+                            return `  ${ctx.label}: ${val} (${pct}%)`;
+                        }
+                    },
+                    padding: 10,
+                    boxPadding: 4,
+                }
+            }
+        }
+    });
+})();
+
+/* ── Generic chart helper (monthly, readiness, budget) ── */
+const baseOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+function makeChart(id, dataId, type, opts) {
+    const raw = document.getElementById(dataId);
+    if (!raw) return;
+    const d = JSON.parse(raw.textContent);
+    const canvas = document.getElementById(id);
+    if (!canvas || !d.labels.length) return;
+    new Chart(canvas, {
+        type,
+        data: {
+            labels: d.labels,
+            datasets: [{
+                data: d.values,
+                fill: type === "line",
+                tension: 0.4,
+                borderColor: "#C72C41",
+                backgroundColor: type === "line" ? "rgba(238,69,64,0.08)" : FALLBACK_COLORS,
+                pointBackgroundColor: "#C72C41",
+                borderWidth: 2,
+            }]
+        },
+        options: opts || baseOpts
+    });
+}
+
+makeChart("monthlyChart","monthly-chart-data","line",{...baseOpts,scales:{y:{beginAtZero:true,grid:{color:"#f1f5f9"},ticks:{font:{size:11}}},x:{grid:{display:false},ticks:{font:{size:11}}}}});
+makeChart("readinessChart","readiness-chart-data","bar",{...baseOpts,scales:{y:{beginAtZero:true,max:100,grid:{color:"#f1f5f9"},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}});
+</script>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "workspace/base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+<section class="card-grid" style="margin-bottom:1.25rem;">
+    <article class="metric-card"><span>Total pipeline</span><strong>{{ pipeline_total }}</strong></article>
+    <article class="metric-card"><span>Weighted pipeline</span><strong>{{ weighted_total }}</strong></article>
+    <article class="metric-card"><span>Won value</span><strong>{{ won_total }}</strong></article>
+    <article class="metric-card accent-card"><span>Readiness</span><strong>{{ readiness.overall }}%</strong></article>
+    <article class="metric-card"><span>Won</span><strong>{{ won_count }}</strong></article>
+    <article class="metric-card"><span>Lost</span><strong>{{ lost_count }}</strong></article>
+    <article class="metric-card accent-card"><span>Win rate</span><strong>{{ win_rate }}%</strong></article>
+</section>
+
+<section class="panel-grid-2" style="margin-bottom:1.25rem;">
+    <article class="panel">
+        <div class="panel-header"><h2>Win reasons</h2></div>
+        {% if win_reasons %}
+        <ul class="simple-list">
+            {% for row in win_reasons %}
+            <li style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ row.outcome_reason|title|cut:"_" }}</span>
+                <span class="badge badge-soft">{{ row.count }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted small">No won opportunities with reasons yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Loss reasons</h2></div>
+        {% if loss_reasons %}
+        <ul class="simple-list">
+            {% for row in loss_reasons %}
+            <li style="display:flex;justify-content:space-between;align-items:center;">
+                <span>{{ row.outcome_reason|title|cut:"_" }}</span>
+                <span class="badge badge-neutral">{{ row.count }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted small">No lost opportunities with reasons yet.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="panel-grid-2" style="margin-bottom:1.25rem;">
+    <article class="panel">
+        <div class="panel-header"><h2>Wins by funder type</h2></div>
+        {% if win_by_type %}
+        <ul class="simple-list">
+            {% for row in win_by_type %}
+            <li style="display:flex;justify-content:space-between;">
+                <span>{{ row.opportunity_type|title }}</span>
+                <span class="badge badge-soft">{{ row.count }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="muted small">No data yet.</p>{% endif %}
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Wins by sector</h2></div>
+        {% if win_by_sector %}
+        <ul class="simple-list">
+            {% for row in win_by_sector %}
+            <li style="display:flex;justify-content:space-between;">
+                <span>{{ row.sector }}</span>
+                <span class="badge badge-soft">{{ row.count }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="muted small">No sector data yet.</p>{% endif %}
+    </article>
+</section>
+
+<section class="panel-grid">
+    <article class="panel">
+        <div class="panel-header"><h2>Task summary</h2></div>
+        <ul class="simple-list">
+            {% for row in task_summary %}
+                <li>{{ row.status|title }} <span class="muted">{{ row.total }}</span></li>
+            {% empty %}
+                <li>No task activity yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Recent activity</h2></div>
+        <ul class="simple-list">
+            {% for item in recent_activity %}
+                <li>{{ item.description }} <span class="muted">{{ item.created_at|date:"M d, Y H:i" }}</span></li>
+            {% empty %}
+                <li>No activity yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

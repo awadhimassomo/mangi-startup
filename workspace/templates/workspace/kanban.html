@@ -1,0 +1,63 @@
+{% extends "workspace/base.html" %}
+{% block title %}Pipeline Kanban{% endblock %}
+{% block page_title %}Pipeline Kanban{% endblock %}
+{% block content %}
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="{% url 'opportunity_list' %}" class="button button-secondary button-sm">List view</a>
+        <a href="{% url 'calendar' %}" class="button button-secondary button-sm">Calendar</a>
+    </div>
+    <a href="{% url 'opportunity_add' %}" class="button">Add opportunity</a>
+</div>
+
+<div class="kanban-board">
+    {% for col in board %}
+    <div class="kanban-col">
+        <div class="kanban-col-head">
+            <h3>{{ col.label }}</h3>
+            <span class="kanban-count">{{ col.opportunities|length }}</span>
+        </div>
+        <div class="kanban-col-body">
+            {% for opp in col.opportunities %}
+            <div class="kanban-card {% if opp.is_overdue or opp.is_deadline_soon %}kanban-overdue{% elif col.value == 'won' %}kanban-won{% endif %}">
+                <a href="{{ opp.get_absolute_url }}" class="kanban-card-name">{{ opp.name }}</a>
+                <div class="kanban-card-meta">
+                    {{ opp.funder_name }}
+                    {% if opp.deadline_date %}
+                        &middot; {% if opp.is_overdue or opp.is_deadline_soon %}<span class="text-danger">&#9888; {{ opp.deadline_date }}</span>{% else %}{{ opp.deadline_date }}{% endif %}
+                    {% endif %}
+                </div>
+                {% if opp.amount %}
+                    <div class="kanban-card-amount">{{ opp.currency }} {{ opp.amount }}</div>
+                {% endif %}
+                {% if opp.tag_list %}
+                    <div style="margin-top:0.4rem;display:flex;gap:0.25rem;flex-wrap:wrap;">
+                        {% for tag in opp.tag_list %}
+                            <span class="badge badge-neutral" style="font-size:0.65rem;">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="kanban-card-footer">
+                    {% if opp.application_link %}
+                        <a href="{{ opp.application_link }}" target="_blank" rel="noopener" class="button button-secondary button-sm">Apply</a>
+                    {% endif %}
+                    <form method="post" action="{% url 'opportunity_stage_update' opp.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'kanban' %}">
+                        <select name="status" title="Move to stage" class="inline-status-select status-{{ opp.status }}">
+                            {% for sv, sl in stages %}
+                                <option value="{{ sv }}" {% if sv == col.value %}selected{% endif %}>{{ sl }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="button button-sm">Move</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <p class="muted small" style="padding:0.5rem 0.25rem;">Empty</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

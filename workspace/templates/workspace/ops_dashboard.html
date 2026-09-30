@@ -1,0 +1,255 @@
+{% extends "workspace/ops_base.html" %}
+{% load humanize %}
+{% block title %}Ops Dashboard — Mangi{% endblock %}
+{% block content %}
+
+{# ── Hero Banner ── #}
+<div style="background:linear-gradient(135deg,#7c0a02 0%,#b91c1c 60%,#dc2626 100%);border-radius:14px;padding:2rem 2.25rem;margin-bottom:1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div>
+        <p style="color:rgba(255,255,255,0.65);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 0.35rem;">Superadmin · Mangi FundOS</p>
+        <h2 style="color:#fff;margin:0 0 0.35rem;font-size:1.5rem;font-weight:800;">Opportunity Operations</h2>
+        <p style="color:rgba(255,255,255,0.75);margin:0;font-size:0.88rem;">Post, manage, and auto-match funding opportunities to startups.</p>
+    </div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <a href="{% url 'posted_opportunity_create' %}" style="background:#fff;color:#991b1b;padding:0.6rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.88rem;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Post Opportunity
+        </a>
+    </div>
+</div>
+
+{# ── KPI Row ── #}
+<div class="kpi-row" style="margin-bottom:1.75rem;">
+    <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Total posted</p>
+            <p class="kpi-value">{{ total }}</p>
+            <p class="kpi-sub">All time</p>
+        </div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Open now</p>
+            <p class="kpi-value">{{ open_count }}</p>
+            <p class="kpi-sub">Visible to startups</p>
+        </div>
+    </div>
+    <div class="kpi-card kpi-orange">
+        <div class="kpi-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Featured</p>
+            <p class="kpi-value">{{ featured_count }}</p>
+            <p class="kpi-sub">Highlighted at top</p>
+        </div>
+    </div>
+    <div class="kpi-card" style="background:var(--surface);border:1px solid var(--border);">
+        <div class="kpi-icon" style="background:rgba(124,10,2,0.08);color:#991b1b;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Startups</p>
+            <p class="kpi-value">{{ total_startups }}</p>
+            <p class="kpi-sub">On platform</p>
+        </div>
+    </div>
+    <div class="kpi-card" style="background:var(--surface);border:1px solid var(--border);">
+        <div class="kpi-icon" style="background:rgba(5,150,105,0.08);color:#059669;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Pipeline entries</p>
+            <p class="kpi-value">{{ total_pipeline_from_board }}</p>
+            <p class="kpi-sub">Created from board</p>
+        </div>
+    </div>
+</div>
+
+{# ── Agent Status Row ── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.75rem;">
+
+    {# Last Run Summary #}
+    <div class="panel" style="padding:1.5rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c0a02,#dc2626);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <div>
+                <h3 style="margin:0;font-size:1rem;font-weight:700;">Matching Agent</h3>
+                <p class="muted small" style="margin:0;">Runs automatically when an opportunity is posted</p>
+            </div>
+        </div>
+        {% if last_run %}
+        <div style="background:var(--bg);border-radius:8px;padding:1rem;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <span class="muted small">Last run · {{ last_run.started_at|date:"M d, Y H:i" }}</span>
+                <span class="badge {% if last_run.status == 'done' %}badge-status-won{% elif last_run.status == 'failed' %}badge-status-lost{% else %}badge-status-in_progress{% endif %}">
+                    {{ last_run.get_status_display }}
+                </span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-top:0.75rem;">
+                <div style="text-align:center;background:var(--surface);border-radius:6px;padding:0.5rem 0.25rem;border:1px solid var(--border);">
+                    <p style="margin:0;font-size:1.15rem;font-weight:800;color:var(--accent);">{{ last_run.pipelines_created }}</p>
+                    <p class="muted" style="margin:0;font-size:0.7rem;">Added</p>
+                </div>
+                <div style="text-align:center;background:var(--surface);border-radius:6px;padding:0.5rem 0.25rem;border:1px solid var(--border);">
+                    <p style="margin:0;font-size:1.15rem;font-weight:800;">{{ last_run.startups_processed }}</p>
+                    <p class="muted" style="margin:0;font-size:0.7rem;">Startups</p>
+                </div>
+                <div style="text-align:center;background:var(--surface);border-radius:6px;padding:0.5rem 0.25rem;border:1px solid var(--border);">
+                    <p style="margin:0;font-size:1.15rem;font-weight:800;">{{ last_run.opportunities_processed }}</p>
+                    <p class="muted" style="margin:0;font-size:0.7rem;">Opps</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div style="background:var(--bg);border-radius:8px;padding:1.25rem;border:1px solid var(--border);text-align:center;">
+            <p class="muted small" style="margin:0;">No runs yet — will trigger automatically on first posted opportunity.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Recent Runs #}
+    <div class="panel" style="padding:1.5rem;">
+        <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;">Recent Agent Runs</h3>
+        {% if recent_runs %}
+        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+            {% for run in recent_runs %}
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.85rem;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+                <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{% if run.status == 'done' %}#10b981{% elif run.status == 'failed' %}#ef4444{% else %}#f59e0b{% endif %};"></div>
+                <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:0.82rem;font-weight:600;">{{ run.started_at|date:"M d · H:i" }}</p>
+                    <p class="muted" style="margin:0;font-size:0.74rem;">{{ run.get_trigger_display }} · {{ run.pipelines_created }} added</p>
+                </div>
+                <span style="font-size:0.75rem;color:var(--muted);">
+                    {% if run.duration_seconds %}{{ run.duration_seconds }}s{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted small" style="text-align:center;padding:2rem 0;">No runs yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Opportunity Management Table ── #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;flex-wrap:wrap;gap:0.75rem;">
+    <h3 style="margin:0;font-size:1rem;font-weight:700;">Posted Opportunities</h3>
+    <form method="get" class="filter-bar" style="margin:0;">
+        <input type="text" name="q" value="{{ search }}" placeholder="Search title or funder…" class="filter-search" style="min-width:200px;">
+        <select name="type">
+            <option value="">All types</option>
+            {% for v, l in type_choices %}
+                <option value="{{ v }}" {% if active_type == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
+        <select name="status">
+            <option value="">All statuses</option>
+            {% for v, l in status_choices %}
+                <option value="{{ v }}" {% if active_status == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="button button-secondary">Filter</button>
+        {% if search or active_type or active_status %}
+            <a href="{% url 'ops_dashboard' %}" class="button button-secondary">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="panel">
+    {% if opportunities %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Funder</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Amount</th>
+                <th>Deadline</th>
+                <th>Featured</th>
+                <th>Pipeline</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for opp in opportunities %}
+            <tr>
+                <td>
+                    <div>
+                        <a href="{{ opp.get_absolute_url }}" style="font-weight:600;color:var(--accent);">{{ opp.title }}</a>
+                        {% if opp.sector_focus %}<p class="muted" style="margin:2px 0 0;font-size:0.73rem;">{{ opp.sector_focus }}</p>{% endif %}
+                    </div>
+                </td>
+                <td><span style="font-size:0.85rem;">{{ opp.funder_name }}</span></td>
+                <td><span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span></td>
+                <td>
+                    <form method="post" action="{% url 'ops_opportunity_toggle_status' opp.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <select name="status" onchange="this.form.submit()" style="font-size:0.78rem;padding:0.2rem 0.4rem;border-radius:5px;border:1px solid var(--border);background:var(--bg);cursor:pointer;">
+                            {% for v, l in status_choices %}
+                            <option value="{{ v }}" {% if opp.status == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td>
+                    {% if opp.amount_min or opp.amount_max %}
+                    <span class="muted small">
+                        {% if opp.amount_min %}{{ opp.currency }} {{ opp.amount_min|floatformat:0|intcomma }}{% endif %}
+                        {% if opp.amount_max %} – {{ opp.amount_max|floatformat:0|intcomma }}{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="muted small">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if opp.deadline %}
+                    <span class="{% if opp.is_deadline_soon %}text-danger{% else %}muted{% endif %} small">
+                        {% if opp.is_deadline_soon %}⚠ {% endif %}{{ opp.deadline }}
+                    </span>
+                    {% else %}
+                    <span class="muted small">—</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:center;">
+                    {% if opp.is_featured %}
+                    <span style="color:#f59e0b;font-size:1rem;">⭐</span>
+                    {% else %}
+                    <span class="muted small">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="muted small">{{ opp.pipeline_opportunities.count }} startup{{ opp.pipeline_opportunities.count|pluralize }}</span>
+                </td>
+                <td>
+                    <div style="display:flex;gap:0.35rem;">
+                        <a href="{% url 'posted_opportunity_edit' opp.pk %}" class="button button-secondary button-sm">Edit</a>
+                        <a href="{% url 'posted_opportunity_delete' opp.pk %}" class="button button-sm" style="background:#fee2e2;color:#991b1b;border:none;">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:3.5rem 1rem;">
+        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#fef2f2,#fee2e2);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <p style="font-weight:600;margin:0 0 0.35rem;">No opportunities posted yet</p>
+        <p class="muted small" style="margin:0 0 1rem;">Post the first opportunity to start matching startups.</p>
+        <a href="{% url 'posted_opportunity_create' %}" class="button">+ Post Opportunity</a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

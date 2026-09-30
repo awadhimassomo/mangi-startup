@@ -1,0 +1,103 @@
+{% extends "workspace/base.html" %}
+{% block title %}Opportunity Board{% endblock %}
+{% block page_title %}Opportunity Board{% endblock %}
+{% block content %}
+
+<div class="board-hero">
+    <div class="board-hero-text">
+        <p class="eyebrow">Posted by Mangi</p>
+        <h2>Funding Opportunities for You</h2>
+        <p class="muted small">Browse grants, competitions, accelerators and more curated by the Mangi team.</p>
+    </div>
+</div>
+
+<form method="get" class="filter-bar" style="margin-bottom:1.25rem;">
+    <input type="text" name="q" value="{{ search }}" placeholder="Search by title or funder…" class="filter-search">
+    <select name="type">
+        <option value="">All types</option>
+        {% for v, l in type_choices %}
+            <option value="{{ v }}" {% if active_type == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+    </select>
+    <select name="status">
+        <option value="">All statuses</option>
+        {% for v, l in status_choices %}
+            <option value="{{ v }}" {% if active_status == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="button button-secondary">Filter</button>
+    {% if search or active_type or active_status %}
+        <a href="{% url 'posted_opportunity_list' %}" class="button button-secondary">Clear</a>
+    {% endif %}
+</form>
+
+<div class="board-grid">
+    {% for opp in opportunities %}
+    <article class="board-card {% if opp.is_featured %}board-card-featured{% endif %}">
+        {% if opp.poster_image %}
+            <a href="{{ opp.get_absolute_url }}" class="board-card-poster"><img src="{{ opp.poster_image.url }}" alt="{{ opp.title }}" loading="lazy"></a>
+        {% endif %}
+        {% if opp.is_featured %}
+            <span class="board-featured-badge">⭐ Featured</span>
+        {% endif %}
+        <div class="board-card-header">
+            <div>
+                <span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span>
+                <span class="board-status board-status-{{ opp.status }}">{{ opp.get_status_display }}</span>
+            </div>
+            {% if opp.deadline %}
+                <span class="muted small {% if opp.is_deadline_soon %}text-danger{% endif %}">
+                    {% if opp.is_deadline_soon %}⚠ {% endif %}Due {{ opp.deadline }}
+                </span>
+            {% endif %}
+        </div>
+        <h3 class="board-card-title"><a href="{{ opp.get_absolute_url }}">{{ opp.title }}</a></h3>
+        <p class="board-card-funder">{{ opp.funder_name }}</p>
+        {% if opp.short_description %}
+            <p class="board-card-desc">{{ opp.short_description|truncatechars:140 }}</p>
+        {% endif %}
+        <div class="board-card-meta">
+            {% if opp.amount_min or opp.amount_max %}
+                <span class="board-meta-chip">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    {{ opp.currency }}
+                    {% if opp.amount_min %}{{ opp.amount_min|floatformat:0 }}{% endif %}
+                    {% if opp.amount_min and opp.amount_max %} – {% endif %}
+                    {% if opp.amount_max %}{{ opp.amount_max|floatformat:0 }}{% endif %}
+                </span>
+            {% endif %}
+            {% if opp.geographic_focus %}
+                <span class="board-meta-chip">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    {{ opp.geographic_focus }}
+                </span>
+            {% endif %}
+        </div>
+        {% if opp.tag_list %}
+        <div class="board-tags">
+            {% for tag in opp.tag_list %}
+                <span class="badge badge-neutral" style="font-size:0.68rem;">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="board-card-footer">
+            <a href="{{ opp.get_absolute_url }}" class="button button-secondary button-sm">View details</a>
+            {% if opp.pk in pipeline_source_ids %}
+                <span class="badge badge-soft">In pipeline</span>
+            {% elif opp.status == "open" %}
+                <form method="post" action="{% url 'posted_opportunity_add_to_pipeline' opp.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="button button-sm">Add to pipeline</button>
+                </form>
+            {% elif opp.application_link %}
+                <a href="{{ opp.application_link }}" target="_blank" rel="noopener" class="button button-sm">Apply now →</a>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="board-empty">
+        <p>No opportunities posted yet.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

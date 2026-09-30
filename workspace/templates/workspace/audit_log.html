@@ -1,0 +1,67 @@
+{% extends "workspace/base.html" %}
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <h2>Activity &amp; Audit Trail</h2>
+        <form method="get" style="display:flex;gap:0.5rem;">
+            <input type="text" name="model" value="{{ model_filter }}" placeholder="Filter by model…" class="form-control" style="width:180px;">
+            <select name="action" class="form-control" style="width:auto;">
+                <option value="">All actions</option>
+                <option value="created" {% if action_filter == "created" %}selected{% endif %}>Created</option>
+                <option value="updated" {% if action_filter == "updated" %}selected{% endif %}>Updated</option>
+                <option value="deleted" {% if action_filter == "deleted" %}selected{% endif %}>Deleted</option>
+            </select>
+            <button type="submit" class="button button-secondary button-sm">Filter</button>
+            {% if model_filter or action_filter %}<a href="{% url 'audit_log' %}" class="button button-secondary button-sm">Clear</a>{% endif %}
+        </form>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr><th>When</th><th>User</th><th>Action</th><th>Model</th><th>Description</th><th>Changes</th></tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td class="muted small">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ log.user|default:"—" }}</td>
+                <td>
+                    <span class="badge {% if log.action == 'created' %}badge-soft{% elif log.action == 'deleted' %}badge-warning{% else %}badge-neutral{% endif %}">
+                        {{ log.action }}
+                    </span>
+                </td>
+                <td class="muted small">{{ log.model_name }}</td>
+                <td>{{ log.description }}</td>
+                <td>
+                    {% if log.before_state or log.after_state %}
+                    <details>
+                        <summary class="muted small" style="cursor:pointer;">View diff</summary>
+                        <div style="font-size:0.72rem;margin-top:0.4rem;max-width:400px;">
+                            {% if log.before_state %}
+                            <div style="background:#fff7f7;border:1px solid #fecaca;border-radius:4px;padding:0.4rem 0.6rem;margin-bottom:0.3rem;">
+                                <strong style="color:#991b1b;">Before</strong><br>
+                                {% for k, v in log.before_state.items %}<span class="muted">{{ k }}:</span> {{ v }}<br>{% endfor %}
+                            </div>
+                            {% endif %}
+                            {% if log.after_state %}
+                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:0.4rem 0.6rem;">
+                                <strong style="color:#166534;">After</strong><br>
+                                {% for k, v in log.after_state.items %}<span class="muted">{{ k }}:</span> {{ v }}<br>{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </details>
+                    {% else %}
+                    <span class="muted small">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="muted" style="padding:1.5rem 0;">No activity matches this filter.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ plan.title }}{% endblock %}
+{% block page_title %}{{ plan.title }}{% endblock %}
+{% block content %}
+<section class="panel-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Budget summary</h2>
+        </div>
+        <dl class="detail-grid">
+            <div><dt>Total available</dt><dd>{{ plan.total_amount }} {{ plan.currency }}</dd></div>
+            <div><dt>Planned total</dt><dd><span class="budget-money">{{ plan.planned_total }}</span></dd></div>
+            <div><dt>Actual total</dt><dd><span class="budget-money">{{ plan.actual_total }}</span></dd></div>
+            <div><dt>Remaining</dt><dd><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount }}</span></dd></div>
+            <div><dt>Funding gap</dt><dd><span class="badge badge-budget-{{ plan.funding_gap_state }}">{{ plan.funding_gap }}</span></dd></div>
+        </dl>
+        <p>{{ plan.notes|default:"No notes yet." }}</p>
+    </article>
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Add budget line</h2>
+        </div>
+        <form method="post" class="stack-form">
+            {% csrf_token %}
+            {{ item_form.as_p }}
+            <button type="submit" class="button">Add item</button>
+        </form>
+    </article>
+</section>
+<section class="panel">
+    <div class="panel-header">
+        <h2>Budget items</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Category</th><th>Planned</th><th>Actual</th><th>Priority</th></tr></thead>
+            <tbody>
+                {% for item in plan.items.all %}
+                    <tr>
+                        <td>{{ item.get_category_display }}</td>
+                        <td>{{ item.planned_amount }}</td>
+                        <td><span class="badge badge-spend-{{ item.spend_state }}">{{ item.actual_amount }}</span></td>
+                        <td><span class="badge badge-priority-{{ item.priority }}">{{ item.get_priority_display }}</span></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">No budget lines yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

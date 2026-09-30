@@ -1,0 +1,17 @@
+{% extends "workspace/base.html" %}
+{% block title %}Delete Opportunity{% endblock %}
+{% block page_title %}Delete Opportunity{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:520px;">
+    <div class="panel-header">
+        <h2>Confirm deletion</h2>
+    </div>
+    <p style="margin-bottom:1.25rem;">Are you sure you want to delete <strong>{{ opp.title }}</strong> ({{ opp.funder_name }})?<br>
+    <span class="muted small">This cannot be undone.</span></p>
+    <form method="post" style="display:flex;gap:0.75rem;">
+        {% csrf_token %}
+        <button type="submit" class="button" style="background:#dc2626;">Yes, delete</button>
+        <a href="{% url 'posted_opportunity_manage' %}" class="button button-secondary">Cancel</a>
+    </form>
+</section>
+{% endblock %}

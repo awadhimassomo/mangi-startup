@@ -1,0 +1,30 @@
+{% extends "workspace/base.html" %}
+{% block title %}Team{% endblock %}
+{% block page_title %}Team{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Workspace members</h2>
+        {% if current_membership.role == 'startup_admin' or current_membership.role == 'super_admin' %}
+            <a href="{% url 'team_add' %}" class="button">Add member</a>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+            <tbody>
+                {% for member in members %}
+                    <tr>
+                        <td>{{ member.user.get_full_name|default:member.user.username }}</td>
+                        <td>{{ member.get_role_display }}</td>
+                        <td>{{ member.is_active|yesno:"Active,Inactive" }}</td>
+                        <td>{{ member.joined_at|date:"M d, Y" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">No team members yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Ops — Mangi FundOS{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mobile-20260930b">
+    <style>
+        .ops-shell { display:flex; min-height:100vh; background:var(--bg); }
+        .ops-sidebar {
+            width:220px; flex-shrink:0; background:var(--surface);
+            border-right:1px solid var(--border); display:flex;
+            flex-direction:column; padding:1.25rem 0;
+        }
+        .ops-brand {
+            display:flex; align-items:center; gap:0.65rem;
+            padding:0 1.25rem 1.25rem; border-bottom:1px solid var(--border); margin-bottom:1rem;
+            text-decoration:none; color:inherit;
+        }
+        .ops-brand-pill {
+            width:34px; height:34px; border-radius:8px;
+            background:linear-gradient(135deg,#7c0a02,#dc2626);
+            color:#fff; font-weight:800; font-size:0.8rem;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        }
+        .ops-brand strong { display:block; font-size:0.88rem; line-height:1.2; }
+        .ops-brand small { font-size:0.72rem; color:var(--muted); }
+        .ops-nav { display:flex; flex-direction:column; gap:0.15rem; padding:0 0.75rem; flex:1; }
+        .ops-nav a {
+            display:flex; align-items:center; gap:0.6rem;
+            padding:0.55rem 0.75rem; border-radius:8px;
+            font-size:0.84rem; font-weight:600; color:var(--text);
+            text-decoration:none; transition:background 0.15s;
+        }
+        .ops-nav a:hover { background:var(--bg); }
+        .ops-nav a.active { background:var(--bg); color:var(--accent); }
+        .ops-nav a svg { flex-shrink:0; opacity:0.7; }
+        .ops-nav .nav-section {
+            font-size:0.67rem; font-weight:700; letter-spacing:0.08em;
+            text-transform:uppercase; color:var(--muted);
+            padding:0.9rem 0.75rem 0.35rem;
+        }
+        .ops-footer { padding:1rem 1.25rem 0; border-top:1px solid var(--border); margin-top:auto; }
+        .ops-footer a { font-size:0.8rem; color:var(--muted); text-decoration:none; }
+        .ops-footer a:hover { color:var(--text); }
+        .ops-main { flex:1; overflow-y:auto; }
+        .ops-topbar {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0.85rem 2rem; border-bottom:1px solid var(--border);
+            background:var(--surface); position:sticky; top:0; z-index:10;
+        }
+        .ops-topbar-left { display:flex; align-items:center; gap:0.5rem; }
+        .ops-eyebrow { font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+        .ops-page-title { font-size:1.1rem; font-weight:800; margin:0; }
+        .ops-content { padding:1.75rem 2rem; }
+        .ops-badge-super {
+            font-size:0.7rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+            background:linear-gradient(135deg,#7c0a02,#dc2626); color:#fff;
+            padding:0.2rem 0.6rem; border-radius:99px;
+        }
+    </style>
+</head>
+<body>
+<div class="ops-shell">
+
+    {# ── Ops Sidebar ── #}
+    <aside class="ops-sidebar">
+        <a href="{% url 'ops_dashboard' %}" class="ops-brand">
+            <div class="ops-brand-pill">MF</div>
+            <div>
+                <strong>Mangi FundOS</strong>
+                <small>Operations</small>
+            </div>
+        </a>
+
+        <nav class="ops-nav">
+            <span class="nav-section">Opportunities</span>
+            <a href="{% url 'ops_dashboard' %}" class="{% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Dashboard
+            </a>
+            <a href="{% url 'posted_opportunity_create' %}" class="{% if request.resolver_match.url_name == 'posted_opportunity_create' %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Post Opportunity
+            </a>
+
+            <span class="nav-section">Workspace</span>
+            <a href="{% url 'dashboard' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Back to Workspace
+            </a>
+        </nav>
+
+        <div class="ops-footer">
+            <p style="margin:0 0 0.25rem;font-size:0.78rem;font-weight:600;">{{ request.user.get_full_name|default:request.user.username }}</p>
+            <span class="ops-badge-super">Superadmin</span>
+            <form method="post" action="{% url 'logout' %}" style="margin-top:0.75rem;">
+                {% csrf_token %}
+                <button type="submit" style="width:100%;background:#fee2e2;color:#991b1b;border:none;padding:0.55rem;border-radius:8px;font-size:0.83rem;font-weight:700;cursor:pointer;">
+                    Sign out
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    {# ── Main Area ── #}
+    <div class="ops-main">
+        <div class="ops-topbar">
+            <div class="ops-topbar-left">
+                <p class="ops-eyebrow" style="margin:0;">Mangi FundOS &rsaquo; Operations</p>
+            </div>
+        </div>
+
+        <div class="ops-content">
+            {% if messages %}
+            <div style="margin-bottom:1.25rem;">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}" style="margin-bottom:0.5rem;">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

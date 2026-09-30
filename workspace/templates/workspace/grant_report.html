@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grant Report — {{ grant.name }}</title>
+    <style>
+        body { font-family: 'Manrope', 'Segoe UI', Arial, sans-serif; color: #20142C; margin: 0; padding: 2rem; font-size: 13px; }
+        h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+        h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; color: #374151; }
+        .meta { color: #6b7280; font-size: 0.8rem; margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.8rem; }
+        th { text-align: left; padding: 0.4rem 0.5rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151; }
+        td { padding: 0.35rem 0.5rem; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .summary-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem 1rem; }
+        .summary-card span { display: block; font-size: 0.72rem; color: #6b7280; margin-bottom: 0.2rem; }
+        .summary-card strong { font-size: 1rem; }
+        .progress-wrap { background: #e5e7eb; border-radius: 4px; height: 6px; margin: 0.25rem 0; }
+        .progress-fill { background: #C72C41; border-radius: 4px; height: 6px; }
+        .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-amber { background: #fef9c3; color: #854d0e; }
+        .badge-grey { background: #f3f4f6; color: #374151; }
+        .text-red { color: #dc2626; }
+        .no-print-btn { position: fixed; top: 1rem; right: 1rem; }
+        @media print {
+            .no-print-btn { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+<button onclick="window.print()" class="no-print-btn" style="padding:0.5rem 1rem;background:#C72C41;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;">Print / Save PDF</button>
+
+<h1>{{ grant.name }}</h1>
+<p class="meta">
+    Funder: <strong>{{ grant.funder_name }}</strong> &nbsp;·&nbsp;
+    Reference: <strong>{{ grant.reference|default:"—" }}</strong> &nbsp;·&nbsp;
+    Project: <strong>{{ grant.project_tag|default:"—" }}</strong> &nbsp;·&nbsp;
+    Period: <strong>{{ grant.start_date }} → {{ grant.end_date }}</strong> &nbsp;·&nbsp;
+    Status: <strong>{{ grant.get_status_display }}</strong>
+    &nbsp;·&nbsp; Generated: <strong>{% now "Y-m-d" %}</strong>
+</p>
+
+<div class="summary-grid">
+    <div class="summary-card"><span>Total grant</span><strong>{{ grant.currency }} {{ grant.total_amount|floatformat:2 }}</strong></div>
+    <div class="summary-card"><span>Total received</span><strong>{{ grant.currency }} {{ grant.total_received|floatformat:2 }}</strong></div>
+    <div class="summary-card"><span>Total spent</span><strong>{{ grant.currency }} {{ grant.total_spent|floatformat:2 }}</strong></div>
+    <div class="summary-card"><span>Remaining</span><strong>{{ grant.currency }} {{ grant.remaining_funds|floatformat:2 }}</strong></div>
+    <div class="summary-card"><span>Utilization</span><strong>{{ grant.utilization_pct }}%</strong>
+        <div class="progress-wrap"><div class="progress-fill js-rpct" data-width="{{ grant.utilization_pct }}"></div></div>
+    </div>
+    <div class="summary-card"><span>Burn rate / day</span><strong>{{ grant.currency }} {{ grant.burn_rate_daily|floatformat:2 }}</strong></div>
+    <div class="summary-card"><span>Forecast end date</span><strong>{{ grant.forecast_end_date|default:"—" }}</strong></div>
+    <div class="summary-card"><span>Outstanding advances</span><strong>{{ grant.currency }} {{ grant.outstanding_advances|floatformat:2 }}</strong></div>
+</div>
+
+<h2>Budget vs Actuals</h2>
+{% if budget_cats %}
+<table>
+    <thead><tr><th>Category</th><th>Milestone</th><th>Allocated</th><th>Spent</th><th>Remaining</th><th>%</th></tr></thead>
+    <tbody>
+    {% for cat in budget_cats %}
+    <tr>
+        <td>{{ cat.name }}</td>
+        <td>{{ cat.milestone.name|default:"—" }}</td>
+        <td>{{ grant.currency }} {{ cat.allocated_amount|floatformat:2 }}</td>
+        <td>{{ grant.currency }} {{ cat.spent|floatformat:2 }}</td>
+        <td {% if cat.remaining < 0 %}class="text-red"{% endif %}>{{ grant.currency }} {{ cat.remaining|floatformat:2 }}</td>
+        <td>{{ cat.utilization_pct }}%</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}<p style="color:#6b7280;">No budget categories.</p>{% endif %}
+
+<h2>Milestones</h2>
+{% if milestones %}
+<table>
+    <thead><tr><th>#</th><th>Milestone</th><th>Period</th><th>Status</th><th>Evidence</th></tr></thead>
+    <tbody>
+    {% for m in milestones %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>
+            <strong>{{ m.name }}</strong>
+            {% if m.deliverables %}<br><span style="color:#6b7280;">{{ m.deliverables|truncatechars:80 }}</span>{% endif %}
+        </td>
+        <td>{{ m.start_month|date:"M Y" }} – {{ m.end_month|date:"M Y" }}</td>
+        <td>
+            {% if m.status == 'approved' %}<span class="badge badge-green">{{ m.get_status_display }}</span>
+            {% elif m.status == 'submitted' or m.status == 'verified' %}<span class="badge badge-grey">{{ m.get_status_display }}</span>
+            {% else %}<span class="badge badge-amber">{{ m.get_status_display }}</span>{% endif %}
+        </td>
+        <td>{{ m.evidence.count }} file{{ m.evidence.count|pluralize }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}<p style="color:#6b7280;">No milestones.</p>{% endif %}
+
+<h2>Expense Ledger</h2>
+{% if expenses %}
+<table>
+    <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Receipt</th><th>Amount</th><th>Method</th><th>Paid By</th></tr></thead>
+    <tbody>
+    {% for e in expenses %}
+    <tr>
+        <td>{{ e.date }}</td>
+        <td>{{ e.description }}</td>
+        <td>{{ e.category.name|default:"—" }}</td>
+        <td>{{ e.vendor|default:"—" }}</td>
+        <td>{{ e.receipt_number|default:"—" }}</td>
+        <td><strong>{{ grant.currency }} {{ e.amount|floatformat:2 }}</strong></td>
+        <td>{{ e.get_payment_method_display }}</td>
+        <td>{{ e.paid_by|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+    <tr style="font-weight:700;background:#f9fafb;">
+        <td colspan="5">Total</td>
+        <td>{{ grant.currency }} {{ grant.total_spent|floatformat:2 }}</td>
+        <td colspan="2"></td>
+    </tr>
+    </tbody>
+</table>
+{% else %}<p style="color:#6b7280;">No expenses recorded.</p>{% endif %}
+
+<h2>Cash Advances</h2>
+{% if advances %}
+<table>
+    <thead><tr><th>Date</th><th>Person</th><th>Purpose</th><th>Given</th><th>Receipts</th><th>Returned</th><th>Balance</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for a in advances %}
+    <tr {% if a.is_aging %}style="background:#fff7ed;"{% endif %}>
+        <td>{{ a.date_issued }}</td>
+        <td>{{ a.person }}</td>
+        <td>{{ a.purpose|truncatechars:50 }}</td>
+        <td>{{ grant.currency }} {{ a.amount_given|floatformat:2 }}</td>
+        <td>{{ grant.currency }} {{ a.receipts_submitted|floatformat:2 }}</td>
+        <td>{{ grant.currency }} {{ a.cash_returned|floatformat:2 }}</td>
+        <td {% if a.balance_outstanding > 0 and a.is_aging %}class="text-red"{% endif %}>{{ grant.currency }} {{ a.balance_outstanding|floatformat:2 }}</td>
+        <td>{% if a.is_reconciled %}<span class="badge badge-green">Reconciled</span>{% elif a.is_aging %}<span class="badge badge-amber">Aging</span>{% else %}<span class="badge badge-grey">Open</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}<p style="color:#6b7280;">No cash advances.</p>{% endif %}
+
+<script>
+document.querySelectorAll('.js-rpct').forEach(function(el){
+    el.style.width = (el.dataset.width || 0) + '%';
+});
+</script>
+</body>
+</html>

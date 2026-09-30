@@ -1,0 +1,35 @@
+{% extends "workspace/base.html" %}
+{% block title %}Exchange Rates{% endblock %}
+{% block page_title %}Exchange Rates (TZS){% endblock %}
+{% block content %}
+<div class="panel-grid-2">
+    <div class="panel">
+        <div class="panel-header"><h2>Add / Update Rate</h2></div>
+        <form method="post" class="stack-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="button" style="margin-top:0.5rem;">Save rate</button>
+        </form>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><h2>Current Rates</h2></div>
+        <table class="data-table">
+            <thead>
+                <tr><th>Currency</th><th>Rate to TZS</th><th>Date</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+                {% for r in rates %}
+                <tr>
+                    <td><strong>{{ r.currency_code }}</strong></td>
+                    <td>{{ r.rate_to_tzs|floatformat:2 }}</td>
+                    <td class="muted small">{{ r.rate_date }}</td>
+                    <td class="muted small">{{ r.get_source_display }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="muted">No rates yet. Add the first one.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

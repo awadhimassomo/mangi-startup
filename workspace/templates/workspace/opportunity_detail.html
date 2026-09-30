@@ -1,0 +1,266 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ opportunity.name }}{% endblock %}
+{% block page_title %}{{ opportunity.name }}{% endblock %}
+{% block content %}
+
+{% if fit_assessment %}
+<section style="background:linear-gradient(135deg,#fdf2f8,#fce7f3);border:1px solid #f9a8d4;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:0.6rem;">
+            <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7c0a02,#dc2626);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <div>
+                <p style="margin:0;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9d174d;">Mangi Agent Review</p>
+                <p style="margin:0;font-size:0.88rem;font-weight:700;">Fit Assessment for {{ opportunity.source_posted_opportunity.title }}</p>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <div style="text-align:center;">
+                <p style="margin:0;font-size:1.6rem;font-weight:800;line-height:1;color:#9d174d;">{{ fit_assessment.score }}<span style="font-size:1rem;font-weight:600;color:#be185d;">/5</span></p>
+                <p style="margin:0;font-size:0.7rem;color:#be185d;">Fit Score</p>
+            </div>
+            <div style="text-align:center;">
+                <p style="margin:0;font-size:1.6rem;font-weight:800;line-height:1;color:#9d174d;">{{ fit_assessment.probability }}<span style="font-size:1rem;font-weight:600;color:#be185d;">%</span></p>
+                <p style="margin:0;font-size:0.7rem;color:#be185d;">Win Probability</p>
+            </div>
+        </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+            <p style="margin:0 0 0.4rem;font-size:0.75rem;font-weight:700;color:#9d174d;">Why it fits</p>
+            <ul style="margin:0;padding-left:1.1rem;font-size:0.83rem;color:#1f2937;">
+                {% for reason in fit_assessment.reasons %}<li style="margin-bottom:0.2rem;">{{ reason }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% if fit_assessment.warnings %}
+        <div>
+            <p style="margin:0 0 0.4rem;font-size:0.75rem;font-weight:700;color:#b45309;">Things to review</p>
+            <ul style="margin:0;padding-left:1.1rem;font-size:0.83rem;color:#1f2937;">
+                {% for w in fit_assessment.warnings %}<li style="margin-bottom:0.2rem;">{{ w }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% if fit_assessment.matched_terms %}
+    <p style="margin:0.85rem 0 0;font-size:0.78rem;color:#9d174d;">
+        <strong>Matched keywords:</strong>
+        {% for term in fit_assessment.matched_terms %}<span style="background:#fce7f3;border:1px solid #f9a8d4;border-radius:4px;padding:0.1rem 0.4rem;margin:0 0.15rem;font-size:0.74rem;">{{ term }}</span>{% endfor %}
+    </p>
+    {% endif %}
+</section>
+{% endif %}
+
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge-status-{{ opportunity.status }}{% if opportunity.is_overdue %} badge-danger{% endif %}">
+            {{ opportunity.get_status_display }}{% if opportunity.is_overdue %} &mdash; OVERDUE{% endif %}
+        </span>
+        {% for tag in opportunity.tag_list %}
+            <span class="badge badge-neutral" style="font-size:0.72rem;">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+        {% if opportunity.application_link %}
+            <a href="{{ opportunity.application_link }}" target="_blank" rel="noopener" class="button button-sm">Apply</a>
+        {% endif %}
+        <a href="{% url 'opportunity_edit' opportunity.pk %}" class="button button-secondary button-sm">Edit</a>
+        <a href="{% url 'kanban' %}" class="button button-secondary button-sm">Kanban</a>
+    </div>
+</div>
+
+<section class="panel-grid-2" style="margin-bottom:1rem;">
+    <article class="panel">
+        <div class="panel-header"><h2>Funder &amp; opportunity</h2></div>
+        <dl class="detail-grid">
+            <div><dt>Funder</dt><dd>
+                {% if opportunity.funder_website %}
+                    <a href="{{ opportunity.funder_website }}" target="_blank" rel="noreferrer">{{ opportunity.funder_name }}</a>
+                {% else %}{{ opportunity.funder_name }}{% endif %}
+            </dd></div>
+            <div><dt>Type</dt><dd>{{ opportunity.get_opportunity_type_display }}</dd></div>
+            <div><dt>Sector</dt><dd>{{ opportunity.sector|default:"—" }}</dd></div>
+            <div><dt>Geography</dt><dd>{{ opportunity.geographic_eligibility|default:"—" }}</dd></div>
+            <div><dt>Application</dt><dd>{% if opportunity.application_link %}<a href="{{ opportunity.application_link }}" target="_blank" rel="noopener">Open application page →</a>{% else %}—{% endif %}</dd></div>
+            <div><dt>Fit score</dt><dd>
+                {% if opportunity.fit_score %}
+                    {% for i in "12345" %}{% if forloop.counter <= opportunity.fit_score %}&#9733;{% else %}&#9734;{% endif %}{% endfor %}
+                {% else %}—{% endif %}
+            </dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Financials &amp; timeline</h2></div>
+        <dl class="detail-grid">
+            <div><dt>Amount range</dt><dd>{{ opportunity.currency }} {{ opportunity.amount_min }} &ndash; {{ opportunity.amount }}</dd></div>
+            <div><dt>Win probability</dt><dd>{{ opportunity.probability }}%</dd></div>
+            <div><dt>Weighted value</dt><dd>{{ opportunity.currency }} {{ opportunity.weighted_amount }}</dd></div>
+            <div>
+                <dt>Deadline</dt>
+                <dd>
+                    {% if opportunity.deadline_date %}
+                        <span class="badge {% if opportunity.is_overdue %}badge-deadline-overdue{% elif opportunity.is_deadline_soon %}badge-deadline-soon{% else %}badge-neutral{% endif %}">
+                            {% if opportunity.is_overdue or opportunity.is_deadline_soon %}&#9888; {% endif %}{{ opportunity.deadline_date }}
+                        </span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </dd>
+            </div>
+            <div><dt>Decision timeline</dt><dd>{{ opportunity.decision_timeline|default:"—" }}</dd></div>
+            <div><dt>Date applied</dt><dd>{{ opportunity.date_applied|default:"—" }}</dd></div>
+            <div><dt>Expected response</dt><dd>{{ opportunity.expected_response_date|default:"—" }}</dd></div>
+        </dl>
+    </article>
+</section>
+
+<section class="panel-grid-2" style="margin-bottom:1rem;">
+    <article class="panel">
+        <div class="panel-header"><h2>Move stage</h2></div>
+        <form method="post" action="{% url 'opportunity_stage_update' opportunity.pk %}" class="stack-form" id="stage-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <p>
+                <label for="id_status">Status</label>
+                <select name="status" id="id_status" class="inline-status-select status-{{ opportunity.status }}">
+                    {% for sv, sl in status_choices %}
+                        <option value="{{ sv }}" {% if sv == opportunity.status %}selected{% endif %}>{{ sl }}</option>
+                    {% endfor %}
+                </select>
+            </p>
+            <div id="outcome-fields" style="display:none;">
+                <p>
+                    <label for="id_outcome_reason">Outcome reason <span style="color:var(--danger);">*</span></label>
+                    {{ stage_form.outcome_reason }}
+                    {% if stage_form.outcome_reason.errors %}<span class="error-text">{{ stage_form.outcome_reason.errors|join:", " }}</span>{% endif %}
+                </p>
+                <p>
+                    <label for="id_outcome_notes">Outcome notes</label>
+                    {{ stage_form.outcome_notes }}
+                </p>
+            </div>
+            <p>
+                <label for="id_note">Stage note</label>
+                {{ stage_form.note }}
+            </p>
+            <button type="submit" class="button" style="margin-top:0.25rem;">Update stage</button>
+        </form>
+        <script>
+        (function () {
+            var sel = document.getElementById('id_status');
+            var outcomeFields = document.getElementById('outcome-fields');
+            var TERMINAL = ['won', 'lost', 'withdrawn'];
+            function toggleOutcome() {
+                outcomeFields.style.display = TERMINAL.includes(sel.value) ? 'block' : 'none';
+            }
+            sel.addEventListener('change', toggleOutcome);
+            toggleOutcome();
+        })();
+        </script>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Stage history</h2></div>
+        <ul class="simple-list">
+            {% for entry in stage_history %}
+                <li>
+                    <span class="badge badge-soft" style="font-size:0.7rem;">{{ entry.from_status|default:"—" }} &rarr; {{ entry.to_status }}</span>
+                    <span class="muted small">&nbsp;{{ entry.changed_by }} &middot; {{ entry.changed_at|date:"M d, Y H:i" }}</span>
+                    {% if entry.note %}<br><span class="muted small">{{ entry.note }}</span>{% endif %}
+                </li>
+            {% empty %}
+                <li class="muted">No stage moves recorded.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+{% if opportunity.outcome_reason %}
+<section class="panel outcome-panel {% if opportunity.status == 'won' %}outcome-won{% else %}outcome-lost{% endif %}" style="margin-bottom:1rem;">
+    <p class="eyebrow">Outcome</p>
+    <p style="font-size:0.9rem;font-weight:600;">{{ opportunity.get_outcome_reason_display }}</p>
+    {% if opportunity.outcome_notes %}<p class="muted small" style="white-space:pre-line;">{{ opportunity.outcome_notes }}</p>{% endif %}
+</section>
+{% endif %}
+
+<section class="panel-grid-2" style="margin-bottom:1rem;">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Funder contacts</h2>
+            <a href="{% url 'contact_add' %}?opportunity={{ opportunity.pk }}" class="button button-secondary button-sm">Add contact</a>
+        </div>
+        <ul class="simple-list">
+            {% for c in opportunity.contacts.all %}
+            <li>
+                <a href="{% url 'contact_detail' c.pk %}"><strong>{{ c.name }}</strong></a>
+                {% if c.role %}<span class="muted small"> &middot; {{ c.role }}</span>{% endif %}
+                {% if c.email %}<br><a href="mailto:{{ c.email }}" class="muted small">{{ c.email }}</a>{% endif %}
+                {% if c.last_interaction_date %}<span class="muted small"> &middot; last contact {{ c.last_interaction_date }}</span>{% endif %}
+            </li>
+            {% empty %}
+            <li class="muted">No contacts linked. <a href="{% url 'contact_add' %}">Add one.</a></li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Budget links</h2></div>
+        <ul class="simple-list">
+            {% for plan in budgets %}
+                <li><a href="{% url 'budget_detail' plan.pk %}">{{ plan.title }}</a></li>
+            {% empty %}
+                <li class="muted">No budget plans linked yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="panel-grid-2">
+    <article class="panel">
+        <div class="panel-header"><h2>Linked documents</h2></div>
+        <ul class="simple-list">
+            {% for document in documents %}
+                <li>
+                    {{ document.title }}
+                    <span class="muted small">{{ document.category.name }}</span>
+                    {% if document.versions.exists %}
+                        <span class="badge badge-neutral" style="font-size:0.65rem;">{{ document.versions.count }} version{{ document.versions.count|pluralize }}</span>
+                    {% endif %}
+                </li>
+            {% empty %}
+                <li class="muted">No documents linked yet.</li>
+            {% endfor %}
+        </ul>
+        <div class="panel-header" style="margin-top:1rem;"><h2>Linked tasks</h2></div>
+        <ul class="simple-list">
+            {% for task in tasks %}
+                <li>{{ task.title }} <span class="badge badge-soft" style="font-size:0.7rem;">{{ task.get_status_display }}</span></li>
+            {% empty %}
+                <li class="muted">No tasks linked yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Notes &amp; feedback</h2></div>
+        {% if opportunity.notes %}
+            <p style="font-size:0.875rem;white-space:pre-line;margin-bottom:1rem;">{{ opportunity.notes }}</p>
+        {% else %}
+            <p class="muted small">No notes yet.</p>
+        {% endif %}
+        {% if opportunity.required_documents %}
+            <p class="eyebrow" style="margin-top:1rem;">Required documents</p>
+            <p style="font-size:0.875rem;white-space:pre-line;">{{ opportunity.required_documents }}</p>
+        {% endif %}
+        {% if opportunity.feedback %}
+            <p class="eyebrow" style="margin-top:1rem;">Feedback</p>
+            <p style="font-size:0.875rem;white-space:pre-line;">{{ opportunity.feedback }}</p>
+        {% endif %}
+        <div class="panel-header" style="margin-top:1rem;"><h2>Activity log</h2></div>
+        <ul class="simple-list">
+            {% for item in activity %}
+                <li>{{ item.description }} <span class="muted small">&middot; {{ item.created_at|date:"M d, Y" }}</span></li>
+            {% empty %}
+                <li class="muted">No activity yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ contact.name }}{% endblock %}
+{% block page_title %}{{ contact.name }}{% endblock %}
+{% block content %}
+
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+        {% if contact.role %}<span class="badge badge-soft">{{ contact.role }}</span>{% endif %}
+        {% if contact.linked_opportunity %}
+            <a href="{{ contact.linked_opportunity.get_absolute_url }}" class="muted small">
+                @ {{ contact.linked_opportunity.funder_name }}
+            </a>
+        {% endif %}
+    </div>
+    <a href="{% url 'contact_edit' contact.pk %}" class="button button-secondary button-sm">Edit</a>
+</div>
+
+<section class="panel-grid-2">
+    <article class="panel">
+        <div class="panel-header"><h2>Contact details</h2></div>
+        <dl class="detail-grid">
+            <div><dt>Email</dt><dd>{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% else %}—{% endif %}</dd></div>
+            <div><dt>Phone</dt><dd>{{ contact.phone|default:"—" }}</dd></div>
+            <div><dt>Last interaction</dt><dd>{{ contact.last_interaction_date|default:"—" }}</dd></div>
+            <div><dt>Linked opportunity</dt><dd>
+                {% if contact.linked_opportunity %}
+                    <a href="{{ contact.linked_opportunity.get_absolute_url }}">{{ contact.linked_opportunity.name }}</a>
+                {% else %}—{% endif %}
+            </dd></div>
+        </dl>
+        {% if contact.notes %}
+            <p class="eyebrow" style="margin-top:1rem;">Notes</p>
+            <p style="font-size:0.875rem;white-space:pre-line;">{{ contact.notes }}</p>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Interactions</h2>
+        </div>
+
+        <form method="post" action="{% url 'interaction_add' contact.pk %}" class="stack-form" style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--line);">
+            {% csrf_token %}
+            {{ interaction_form.as_p }}
+            <button type="submit" class="button button-sm" style="margin-top:0.25rem;">Log interaction</button>
+        </form>
+
+        <ul class="simple-list">
+            {% for interaction in interactions %}
+            <li>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem;">
+                    <span class="badge badge-neutral" style="font-size:0.68rem;">{{ interaction.get_interaction_type_display }}</span>
+                    <span class="muted small">{{ interaction.date }} &middot; {{ interaction.logged_by|default:"—" }}</span>
+                </div>
+                <p style="font-size:0.84rem;margin:0;">{{ interaction.summary }}</p>
+            </li>
+            {% empty %}
+            <li class="muted">No interactions logged yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

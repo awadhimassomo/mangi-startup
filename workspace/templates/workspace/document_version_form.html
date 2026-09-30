@@ -1,0 +1,42 @@
+{% extends "workspace/base.html" %}
+{% block title %}Upload New Version{% endblock %}
+{% block page_title %}New Version: {{ parent.title }}{% endblock %}
+{% block content %}
+<section class="panel-grid-2">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Upload new version</h2>
+        </div>
+        <p class="muted small" style="margin-bottom:1.25rem;">
+            Uploading a new version of <strong>{{ parent.title }}</strong>.
+            The original and all previous versions are preserved.
+        </p>
+        <form method="post" enctype="multipart/form-data" class="stack-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+                <button type="submit" class="button">Upload version</button>
+                <a href="{% url 'document_list' %}" class="button button-secondary">Cancel</a>
+            </div>
+        </form>
+    </article>
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Version history</h2>
+        </div>
+        <ul class="simple-list">
+            {% for ver in versions %}
+                <li>
+                    <strong>v{{ ver.version }}</strong>
+                    <span class="muted small">&mdash; {{ ver.uploaded_by }} &middot; {{ ver.created_at|date:"M d, Y H:i" }}</span>
+                    {% if ver.file %}
+                        <a href="{{ ver.file.url }}" target="_blank" rel="noreferrer" class="muted small" style="margin-left:0.5rem;">Download</a>
+                    {% endif %}
+                </li>
+            {% empty %}
+                <li class="muted">No previous versions yet.</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

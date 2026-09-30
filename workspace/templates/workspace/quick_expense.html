@@ -1,0 +1,38 @@
+{% extends "workspace/base.html" %}
+{% block title %}Quick Expense{% endblock %}
+{% block page_title %}Log Expense{% endblock %}
+{% block content %}
+<div class="quick-expense-wrap">
+    {% if saved %}
+    <div class="quick-success">
+        <span style="font-size:2rem;">✓</span>
+        <p><strong>Expense saved!</strong></p>
+        <p class="muted small">Log another one below.</p>
+    </div>
+    {% endif %}
+
+    <div class="panel quick-expense-panel">
+        <div class="panel-header">
+            <h2>Quick Expense</h2>
+            <span class="muted small">Mobile-friendly</span>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="stack-form quick-form">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="quick-field">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    {% for e in field.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="button button-full quick-submit">Save Expense</button>
+        </form>
+    </div>
+
+    <p style="text-align:center;margin-top:1rem;">
+        <a href="{% url 'grant_list' %}" class="muted small">← Back to grants</a>
+    </p>
+</div>
+{% endblock %}

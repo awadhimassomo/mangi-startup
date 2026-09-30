@@ -1,0 +1,135 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Workspace - Mangi FundOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mangi-onboarding-steps-20260601">
+</head>
+<body>
+    <main class="onboarding-page">
+        <section class="auth-panel onboarding-panel">
+            <a href="/" class="onboarding-logo" aria-label="Mangi FundOS home">
+                <span class="auth-brand-mark">MF</span>
+                <span>Mangi FundOS</span>
+            </a>
+            <div class="auth-card auth-card-modern onboarding-card onboarding-step-card">
+                <div class="onboarding-card-head">
+                    <div>
+                        <p class="eyebrow">Workspace Setup</p>
+                        <h2>Tell us about your startup</h2>
+                    </div>
+                    <div class="step-counter" aria-live="polite">Step <span id="currentStep">1</span> of 4</div>
+                </div>
+
+                <div class="step-progress" aria-hidden="true">
+                    <span class="step-dot step-dot-active"></span>
+                    <span class="step-dot"></span>
+                    <span class="step-dot"></span>
+                    <span class="step-dot"></span>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" class="stack-form onboarding-wizard" id="onboardingForm">
+                    {% csrf_token %}
+
+                    <fieldset class="wizard-step wizard-step-active" data-step="1">
+                        <legend>Basics</legend>
+                        <div class="wizard-grid">
+                            <p>{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</p>
+                            <p>{{ form.legal_name.label_tag }}{{ form.legal_name }}{{ form.legal_name.errors }}</p>
+                            <p>{{ form.country.label_tag }}{{ form.country }}{{ form.country.errors }}</p>
+                            <p>{{ form.city.label_tag }}{{ form.city }}{{ form.city.errors }}</p>
+                            <p>{{ form.registration_number.label_tag }}{{ form.registration_number }}{{ form.registration_number.errors }}</p>
+                            <p>{{ form.year_founded.label_tag }}{{ form.year_founded }}{{ form.year_founded.errors }}</p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="wizard-step" data-step="2">
+                        <legend>Business Profile</legend>
+                        <div class="wizard-grid">
+                            <p>{{ form.sector.label_tag }}{{ form.sector }}{{ form.sector.errors }}</p>
+                            <p>{{ form.business_model.label_tag }}{{ form.business_model }}{{ form.business_model.errors }}</p>
+                            <p class="wizard-wide">{{ form.short_description.label_tag }}{{ form.short_description }}{{ form.short_description.errors }}</p>
+                            <p class="wizard-wide">{{ form.problem_statement.label_tag }}{{ form.problem_statement }}{{ form.problem_statement.errors }}</p>
+                            <p class="wizard-wide">{{ form.solution_statement.label_tag }}{{ form.solution_statement }}{{ form.solution_statement.errors }}</p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="wizard-step" data-step="3">
+                        <legend>Market and Funding</legend>
+                        <div class="wizard-grid">
+                            <p class="wizard-wide">{{ form.target_market.label_tag }}{{ form.target_market }}{{ form.target_market.errors }}</p>
+                            <p>{{ form.revenue_model.label_tag }}{{ form.revenue_model }}{{ form.revenue_model.errors }}</p>
+                            <p>{{ form.current_traction.label_tag }}{{ form.current_traction }}{{ form.current_traction.errors }}</p>
+                            <p>{{ form.funding_goal.label_tag }}{{ form.funding_goal }}{{ form.funding_goal.errors }}</p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="wizard-step" data-step="4">
+                        <legend>Contact and Brand</legend>
+                        <div class="wizard-grid">
+                            <p>{{ form.website.label_tag }}{{ form.website }}{{ form.website.errors }}</p>
+                            <p>{{ form.contact_email.label_tag }}{{ form.contact_email }}{{ form.contact_email.errors }}</p>
+                            <p>{{ form.phone_number.label_tag }}{{ form.phone_number }}{{ form.phone_number.errors }}</p>
+                            <p>{{ form.founder_name.label_tag }}{{ form.founder_name }}{{ form.founder_name.errors }}</p>
+                            <p class="wizard-wide">{{ form.logo.label_tag }}{{ form.logo }}{{ form.logo.errors }}</p>
+                        </div>
+                    </fieldset>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert-error">{{ form.non_field_errors|striptags }}</div>
+                    {% endif %}
+
+                    <div class="wizard-actions">
+                        <button type="button" class="button button-secondary" id="prevStep">Back</button>
+                        <button type="button" class="submit-btn wizard-next" id="nextStep">Next</button>
+                        <button type="submit" class="submit-btn wizard-submit" id="submitStep">Create workspace</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+    <script>
+        const steps = Array.from(document.querySelectorAll(".wizard-step"));
+        const dots = Array.from(document.querySelectorAll(".step-dot"));
+        const currentStepLabel = document.getElementById("currentStep");
+        const prevButton = document.getElementById("prevStep");
+        const nextButton = document.getElementById("nextStep");
+        const submitButton = document.getElementById("submitStep");
+        let activeStep = 0;
+
+        function showStep(index) {
+            activeStep = Math.max(0, Math.min(index, steps.length - 1));
+            steps.forEach((step, i) => step.classList.toggle("wizard-step-active", i === activeStep));
+            dots.forEach((dot, i) => dot.classList.toggle("step-dot-active", i <= activeStep));
+            currentStepLabel.textContent = String(activeStep + 1);
+            prevButton.disabled = activeStep === 0;
+            nextButton.style.display = activeStep === steps.length - 1 ? "none" : "inline-flex";
+            submitButton.style.display = activeStep === steps.length - 1 ? "inline-flex" : "none";
+        }
+
+        function validateCurrentStep() {
+            const controls = Array.from(steps[activeStep].querySelectorAll("input, select, textarea"));
+            return controls.every((control) => control.reportValidity());
+        }
+
+        prevButton.addEventListener("click", () => showStep(activeStep - 1));
+        nextButton.addEventListener("click", () => {
+            if (validateCurrentStep()) showStep(activeStep + 1);
+        });
+
+        const firstError = document.querySelector(".errorlist");
+        if (firstError) {
+            const erroredStep = firstError.closest(".wizard-step");
+            const index = steps.indexOf(erroredStep);
+            if (index >= 0) showStep(index);
+        } else {
+            showStep(0);
+        }
+    </script>
+</body>
+</html>

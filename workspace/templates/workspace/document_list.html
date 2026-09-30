@@ -1,0 +1,50 @@
+{% extends "workspace/base.html" %}
+{% block title %}Data Room{% endblock %}
+{% block page_title %}Data Room{% endblock %}
+{% block content %}
+<section class="panel-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Documents</h2>
+            <a href="{% url 'document_add' %}" class="button">Upload document</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Visibility</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <td><a href="{% url 'document_edit' document.pk %}">{{ document.title }}</a></td>
+                            <td>{{ document.category.name }}</td>
+                            <td><span class="badge">{{ document.get_completion_status_display }}</span></td>
+                            <td>{{ document.get_visibility_display }}</td>
+                            <td>{{ document.updated_at|date:"M d, Y" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">No documents uploaded yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+    <article class="panel accent-panel">
+        <div class="panel-header">
+            <h2>Readiness</h2>
+        </div>
+        <p class="hero-number">{{ readiness.overall }}%</p>
+        <ul class="simple-list">
+            {% for category in readiness.categories %}
+                <li>{{ category.name }} <span class="muted">{{ category.percent }}%</span></li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

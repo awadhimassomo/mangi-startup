@@ -1,0 +1,20 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ mode }} Grant{% endblock %}
+{% block page_title %}{{ mode }} Grant{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:680px;">
+    <div class="panel-header">
+        <h2>{{ mode }} grant{% if grant %}: {{ grant.name }}{% endif %}</h2>
+        {% if grant %}
+            <a href="{{ grant.get_absolute_url }}" class="button button-secondary button-sm">Cancel</a>
+        {% else %}
+            <a href="{% url 'grant_list' %}" class="button button-secondary button-sm">Cancel</a>
+        {% endif %}
+    </div>
+    <form method="post" enctype="multipart/form-data" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="button" style="margin-top:0.5rem;">Save grant</button>
+    </form>
+</div>
+{% endblock %}

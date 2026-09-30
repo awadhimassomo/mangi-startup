@@ -1,0 +1,12 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ mode }} Task{% endblock %}
+{% block page_title %}{{ mode }} Task{% endblock %}
+{% block content %}
+<section class="panel form-panel">
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="button">{{ mode }} task</button>
+    </form>
+</section>
+{% endblock %}

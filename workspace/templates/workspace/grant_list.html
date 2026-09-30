@@ -1,0 +1,80 @@
+{% extends "workspace/base.html" %}
+{% block title %}Grants{% endblock %}
+{% block page_title %}Grant Records{% endblock %}
+{% block content %}
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <form method="get" style="display:flex;gap:0.5rem;">
+        <select name="status" class="form-control" style="width:auto;">
+            <option value="">All statuses</option>
+            {% for sv, sl in status_choices %}
+                <option value="{{ sv }}" {% if sv == status_filter %}selected{% endif %}>{{ sl }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="button button-secondary button-sm">Filter</button>
+        {% if status_filter %}<a href="{% url 'grant_list' %}" class="button button-secondary button-sm">Clear</a>{% endif %}
+    </form>
+    <a href="{% url 'grant_add' %}" class="button">+ New grant</a>
+</div>
+
+<div class="panel">
+{% if grants %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Grant name</th>
+            <th>Funder</th>
+            <th>Project</th>
+            <th>Total</th>
+            <th>Period</th>
+            <th>Milestones</th>
+            <th>Utilization</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for grant in grants %}
+        <tr>
+            <td><a href="{{ grant.get_absolute_url }}"><strong>{{ grant.name }}</strong></a>
+                {% if grant.reference %}<br><span class="muted small">{{ grant.reference }}</span>{% endif %}
+            </td>
+            <td class="muted">{{ grant.funder_name }}</td>
+            <td class="muted small">{{ grant.project_tag|default:"—" }}</td>
+            <td>{{ grant.currency }} {{ grant.total_amount|floatformat:0 }}</td>
+            <td class="muted small">{{ grant.start_date }} → {{ grant.end_date }}</td>
+            <td>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar js-pct" data-width="{{ grant.milestone_progress }}"></div>
+                </div>
+                <span class="muted small">{{ grant.milestone_progress }}%</span>
+            </td>
+            <td>
+                <div class="progress-bar-wrap">
+                    {% if grant.utilization_pct > 90 %}
+                    <div class="progress-bar progress-danger js-pct" data-width="{{ grant.utilization_pct }}"></div>
+                    {% else %}
+                    <div class="progress-bar js-pct" data-width="{{ grant.utilization_pct }}"></div>
+                    {% endif %}
+                </div>
+                <span class="muted small">{{ grant.utilization_pct }}%</span>
+            </td>
+            <td>
+                <span class="badge {% if grant.status == 'active' %}badge-soft{% elif grant.status == 'closed' %}badge-neutral{% else %}badge-warning{% endif %}">
+                    {{ grant.get_status_display }}
+                </span>
+            </td>
+            <td><a href="{{ grant.get_absolute_url }}" class="button button-secondary button-sm">View</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted" style="padding:1.5rem 0;">No grants yet. <a href="{% url 'grant_add' %}">Create the first one.</a></p>
+{% endif %}
+</div>
+<script>
+document.querySelectorAll('.js-pct').forEach(function(el){
+    el.style.width = (el.dataset.width || 0) + '%';
+});
+</script>
+{% endblock %}

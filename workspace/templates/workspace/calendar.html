@@ -1,0 +1,45 @@
+{% extends "workspace/base.html" %}
+{% block title %}Deadline Calendar{% endblock %}
+{% block page_title %}Deadline Calendar{% endblock %}
+{% block content %}
+<div class="panel">
+    <div class="calendar-nav">
+        <a href="?year={{ prev_year }}&month={{ prev_month }}" class="button button-secondary button-sm">&larr; Prev</a>
+        <h2>{{ month_name }} {{ year }}</h2>
+        <a href="?year={{ next_year }}&month={{ next_month }}" class="button button-secondary button-sm">Next &rarr;</a>
+        <span style="flex:1;"></span>
+        <a href="{% url 'opportunity_list' %}" class="button button-secondary button-sm">List</a>
+        <a href="{% url 'kanban' %}" class="button button-secondary button-sm">Kanban</a>
+        <a href="{% url 'opportunity_add' %}" class="button">Add</a>
+    </div>
+
+    <div class="cal-grid">
+        <div class="cal-header-cell">Mon</div>
+        <div class="cal-header-cell">Tue</div>
+        <div class="cal-header-cell">Wed</div>
+        <div class="cal-header-cell">Thu</div>
+        <div class="cal-header-cell">Fri</div>
+        <div class="cal-header-cell">Sat</div>
+        <div class="cal-header-cell">Sun</div>
+
+        {% for week in calendar_weeks %}
+            {% for cell in week %}
+                {% if cell.is_empty %}
+                    <div class="cal-cell empty"></div>
+                {% else %}
+                    <div class="cal-cell {% if cell.is_today %}today{% endif %}">
+                        <span class="cal-day-num">{{ cell.day }}</span>
+                        {% for opp in cell.events %}
+                            <a href="{{ opp.get_absolute_url }}"
+                               class="cal-event {% if opp.is_overdue %}overdue{% endif %}"
+                               title="{{ opp.funder_name }}: {{ opp.name }}">
+                                {{ opp.name|truncatechars:20 }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

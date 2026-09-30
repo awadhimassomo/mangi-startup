@@ -1,0 +1,28 @@
+{% extends "workspace/base.html" %}
+{% block title %}Startup Profile{% endblock %}
+{% block page_title %}Startup Profile{% endblock %}
+{% block content %}
+<section class="panel-grid profile-layout">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Company details</h2>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="stack-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="button">Save profile</button>
+        </form>
+    </article>
+    <article class="panel accent-panel">
+        <div class="panel-header">
+            <h2>Readiness summary</h2>
+        </div>
+        <p class="hero-number">{{ readiness.overall }}%</p>
+        <ul class="simple-list">
+            {% for category in readiness.categories %}
+                <li>{{ category.name }} <span class="muted">{{ category.complete_count }}/{{ category.expected_count }}</span></li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}

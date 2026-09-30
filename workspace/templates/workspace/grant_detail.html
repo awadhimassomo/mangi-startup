@@ -1,0 +1,336 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ grant.name }}{% endblock %}
+{% block page_title %}{{ grant.name }}{% endblock %}
+{% block content %}
+
+{# ── Top bar ──────────────────────────────────────────────────── #}
+<div class="panel-header" style="margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;">
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <span class="badge {% if grant.status == 'active' %}badge-soft{% elif grant.status == 'closed' %}badge-neutral{% else %}badge-warning{% endif %}">
+            {{ grant.get_status_display }}
+        </span>
+        {% if grant.project_tag %}<span class="badge badge-neutral">{{ grant.project_tag }}</span>{% endif %}
+        {% if grant.is_over_budget_forecast %}
+            <span class="badge" style="background:#fee2e2;color:#b91c1c;">⚠ Forecast exceeds end date</span>
+        {% endif %}
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+        <a href="{% url 'grant_edit' grant.pk %}" class="button button-secondary button-sm">Edit</a>
+        <a href="{% url 'grant_report' grant.pk %}" class="button button-secondary button-sm" target="_blank">Report</a>
+        <div style="position:relative;display:inline-block;">
+            <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" class="button button-secondary button-sm">Export CSV ▾</button>
+            <div style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:6px;min-width:170px;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.08);">
+                <a href="{% url 'grant_export' grant.pk %}?type=expenses" class="dropdown-item">Expense ledger</a>
+                <a href="{% url 'grant_export' grant.pk %}?type=disbursements" class="dropdown-item">Disbursements</a>
+                <a href="{% url 'grant_export' grant.pk %}?type=budget" class="dropdown-item">Budget vs Actuals</a>
+                <a href="{% url 'grant_export' grant.pk %}?type=advances" class="dropdown-item">Cash advances</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Summary cards ────────────────────────────────────────────── #}
+<section class="card-grid" style="margin-bottom:1.25rem;">
+    <article class="metric-card"><span>Total grant</span><strong>{{ grant.currency }} {{ grant.total_amount|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Received</span><strong>{{ grant.currency }} {{ grant.total_received|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Spent</span><strong>{{ grant.currency }} {{ grant.total_spent|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Remaining</span><strong>{{ grant.currency }} {{ grant.remaining_funds|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Outstanding advances</span><strong>{{ grant.currency }} {{ grant.outstanding_advances|floatformat:2 }}</strong></article>
+    <article class="metric-card accent-card"><span>Utilization</span><strong>{{ grant.utilization_pct }}%</strong></article>
+    <article class="metric-card"><span>Burn rate / day</span><strong>{{ grant.currency }} {{ grant.burn_rate_daily|floatformat:2 }}</strong></article>
+    <article class="metric-card {% if grant.is_over_budget_forecast %}metric-danger{% endif %}">
+        <span>Forecast end</span>
+        <strong>{{ grant.forecast_end_date|default:"—" }}</strong>
+    </article>
+</section>
+
+{# ── Budget utilization bar ───────────────────────────────────── #}
+<div class="panel" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+        <span class="eyebrow">Overall utilization</span>
+        <span class="muted small">{{ grant.start_date }} → {{ grant.end_date }}</span>
+    </div>
+    <div class="progress-bar-wrap progress-bar-lg">
+        <div class="progress-bar {% if grant.utilization_pct > 90 %}progress-danger{% elif grant.utilization_pct > 75 %}progress-warning{% endif %} js-pct"
+             data-width="{{ grant.utilization_pct }}"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:0.35rem;">
+        <span class="muted small">{{ grant.currency }} {{ grant.total_spent|floatformat:0 }} spent</span>
+        <span class="muted small">{{ grant.currency }} {{ grant.total_amount|floatformat:0 }} total</span>
+    </div>
+</div>
+
+{# ── Disbursements ────────────────────────────────────────────── #}
+<div id="disbursements" class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header">
+        <h2>Disbursements / Tranches</h2>
+    </div>
+    {% if disbursements %}
+    <table class="data-table" style="margin-bottom:1rem;">
+        <thead>
+            <tr><th>Tranche</th><th>Amount</th><th>Expected</th><th>Received</th><th>Status</th><th>Bank Account</th><th>Rate</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for d in disbursements %}
+            <tr>
+                <td>{{ d.name }}</td>
+                <td>{{ d.currency }} {{ d.amount|floatformat:2 }}</td>
+                <td class="muted small">{{ d.expected_date }}</td>
+                <td class="muted small">{{ d.actual_receipt_date|default:"—" }}</td>
+                <td><span class="badge {% if d.status == 'received' %}badge-soft{% elif d.status == 'delayed' %}badge-warning{% else %}badge-neutral{% endif %}">{{ d.get_status_display }}</span></td>
+                <td class="muted small">{{ d.bank_account|default:"—" }}</td>
+                <td class="muted small">{{ d.exchange_rate|default:"—" }}</td>
+                <td><a href="{% url 'disbursement_edit' d.pk %}" class="button button-secondary button-sm">Edit</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted small" style="margin-bottom:0.75rem;">No tranches added yet.</p>
+    {% endif %}
+    <details class="add-form-details">
+        <summary class="button button-secondary button-sm">+ Add tranche</summary>
+        <form method="post" action="{% url 'disbursement_add' grant.pk %}" class="stack-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            {{ disbursement_form.as_p }}
+            <button type="submit" class="button button-sm">Save tranche</button>
+        </form>
+    </details>
+</div>
+
+{# ── Milestones ───────────────────────────────────────────────── #}
+<div id="milestones" class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header">
+        <h2>Milestones</h2>
+        <div>
+            <div class="progress-bar-wrap" style="width:160px;display:inline-block;vertical-align:middle;margin-right:0.5rem;">
+                <div class="progress-bar js-pct" data-width="{{ grant.milestone_progress }}"></div>
+            </div>
+            <span class="muted small">{{ grant.milestone_progress }}% approved</span>
+        </div>
+    </div>
+    {% for m in milestones %}
+    <div class="milestone-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
+            <div>
+                <strong>{{ m.order|default:forloop.counter }}. {{ m.name }}</strong>
+                <span class="muted small"> &middot; {{ m.start_month|date:"M Y" }} – {{ m.end_month|date:"M Y" }}</span>
+            </div>
+            <span class="badge
+                {% if m.status == 'approved' %}badge-soft
+                {% elif m.status == 'verified' or m.status == 'submitted' %}badge-neutral
+                {% else %}badge-warning{% endif %}">
+                {{ m.get_status_display }}
+            </span>
+        </div>
+        <div class="progress-bar-wrap" style="margin:0.4rem 0;">
+            <div class="progress-bar js-pct" data-width="{{ m.progress_pct }}"></div>
+        </div>
+        {% if m.description %}<p class="muted small" style="margin:0.25rem 0;">{{ m.description }}</p>{% endif %}
+        {% if m.deliverables %}<p class="muted small"><strong>Deliverables:</strong> {{ m.deliverables }}</p>{% endif %}
+        {% if m.verification_method %}<p class="muted small"><strong>Verification:</strong> {{ m.verification_method }}</p>{% endif %}
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem;">
+            {% for ev in m.evidence.all %}
+            <a href="{{ ev.file.url }}" target="_blank" class="button button-secondary button-sm">
+                📎 {{ ev.description|default:ev.file.name|truncatechars:25 }}
+            </a>
+            {% endfor %}
+            <form method="post" action="{% url 'milestone_evidence_add' m.pk %}" enctype="multipart/form-data" style="display:inline;">
+                {% csrf_token %}
+                <label class="button button-secondary button-sm" style="cursor:pointer;">
+                    + Evidence
+                    {{ milestone_evidence_form.file }}
+                </label>
+                <input type="text" name="description" placeholder="Description" style="display:none;">
+            </form>
+        </div>
+        <details style="margin-top:0.5rem;">
+            <summary class="muted small" style="cursor:pointer;">Update status</summary>
+            <form method="post" action="{% url 'milestone_status' m.pk %}" class="stack-form" style="margin-top:0.5rem;">
+                {% csrf_token %}
+                <select name="status">
+                    {% for sv, sl in milestone_status_choices %}
+                    <option value="{{ sv }}" {% if sv == m.status %}selected{% endif %}>{{ sl }}</option>
+                    {% endfor %}
+                </select>
+                <textarea name="notes" rows="2" placeholder="Notes…" style="margin-top:0.25rem;">{{ m.notes }}</textarea>
+                <button type="submit" class="button button-sm" style="margin-top:0.25rem;">Update</button>
+            </form>
+        </details>
+    </div>
+    {% empty %}
+    <p class="muted small" style="margin-bottom:0.75rem;">No milestones defined yet.</p>
+    {% endfor %}
+    <details class="add-form-details" style="margin-top:0.75rem;">
+        <summary class="button button-secondary button-sm">+ Add milestone</summary>
+        <form method="post" action="{% url 'milestone_add' grant.pk %}" class="stack-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            {{ milestone_form.as_p }}
+            <button type="submit" class="button button-sm">Save milestone</button>
+        </form>
+    </details>
+</div>
+
+{# ── Budget vs Actuals ────────────────────────────────────────── #}
+<div id="budget" class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header"><h2>Budget vs Actuals</h2></div>
+    {% if budget_cats %}
+    <table class="data-table" style="margin-bottom:1rem;">
+        <thead>
+            <tr><th>Category</th><th>Milestone</th><th>Allocated</th><th>Spent</th><th>Remaining</th><th>%</th></tr>
+        </thead>
+        <tbody>
+            {% for cat in budget_cats %}
+            <tr>
+                <td><strong>{{ cat.name }}</strong></td>
+                <td class="muted small">{{ cat.milestone.name|default:"—" }}</td>
+                <td>{{ grant.currency }} {{ cat.allocated_amount|floatformat:2 }}</td>
+                <td>{{ grant.currency }} {{ cat.spent|floatformat:2 }}</td>
+                <td class="{% if cat.remaining < 0 %}text-danger{% endif %}">{{ grant.currency }} {{ cat.remaining|floatformat:2 }}</td>
+                <td>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar {% if cat.utilization_pct > 100 %}progress-danger{% elif cat.utilization_pct > 85 %}progress-warning{% endif %} js-pct"
+                             data-width="{% if cat.utilization_pct > 100 %}100{% else %}{{ cat.utilization_pct }}{% endif %}"></div>
+                    </div>
+                    <span class="muted small">{{ cat.utilization_pct }}%</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted small" style="margin-bottom:0.75rem;">No budget categories defined yet.</p>
+    {% endif %}
+    <details class="add-form-details">
+        <summary class="button button-secondary button-sm">+ Add budget category</summary>
+        <form method="post" action="{% url 'budget_category_add' grant.pk %}" class="stack-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            {{ budget_cat_form.as_p }}
+            <button type="submit" class="button button-sm">Save category</button>
+        </form>
+    </details>
+</div>
+
+{# ── Expense Log ──────────────────────────────────────────────── #}
+<div id="expenses" class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header">
+        <h2>Expense Log</h2>
+        <span class="muted small">{{ expenses|length }} entr{{ expenses|length|pluralize:"y,ies" }}</span>
+    </div>
+    <form method="get" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <input type="hidden" name="_tab" value="expenses">
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control" placeholder="From">
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control" placeholder="To">
+        <select name="category" class="form-control" style="width:auto;">
+            <option value="">All categories</option>
+            {% for cat in budget_cats %}
+            <option value="{{ cat.pk }}" {% if cat_filter == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="milestone_f" class="form-control" style="width:auto;">
+            <option value="">All milestones</option>
+            {% for m in milestones %}
+            <option value="{{ m.pk }}" {% if ms_filter == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="button button-secondary button-sm">Filter</button>
+        <a href="{{ grant.get_absolute_url }}#expenses" class="button button-secondary button-sm">Clear</a>
+    </form>
+    {% if expenses %}
+    <table class="data-table" style="margin-bottom:1rem;">
+        <thead>
+            <tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Receipt</th><th>Amount</th><th>Method</th><th>Paid by</th></tr>
+        </thead>
+        <tbody>
+            {% for e in expenses %}
+            <tr>
+                <td class="muted small">{{ e.date }}</td>
+                <td>{{ e.description }}</td>
+                <td class="muted small">{{ e.category.name|default:"—" }}</td>
+                <td class="muted small">{{ e.vendor|default:"—" }}</td>
+                <td>
+                    {% if e.receipt_file %}
+                        <a href="{{ e.receipt_file.url }}" target="_blank" class="button button-secondary button-sm">📎</a>
+                    {% endif %}
+                    {% if e.receipt_number %}<span class="muted small">{{ e.receipt_number }}</span>{% endif %}
+                    {% if not e.receipt_file and not e.receipt_number %}—{% endif %}
+                </td>
+                <td><strong>{{ grant.currency }} {{ e.amount|floatformat:2 }}</strong></td>
+                <td class="muted small">{{ e.get_payment_method_display }}</td>
+                <td class="muted small">{{ e.paid_by|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted small" style="margin-bottom:0.75rem;">No expenses match the current filter.</p>
+    {% endif %}
+    <details class="add-form-details">
+        <summary class="button button-secondary button-sm">+ Log expense</summary>
+        <form method="post" action="{% url 'expense_add' grant.pk %}" enctype="multipart/form-data" class="stack-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            {{ expense_form.as_p }}
+            <button type="submit" class="button button-sm">Save expense</button>
+        </form>
+    </details>
+</div>
+
+{# ── Cash Advances ────────────────────────────────────────────── #}
+<div id="advances" class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header"><h2>Cash Advances</h2></div>
+    {% if advances %}
+    <table class="data-table" style="margin-bottom:1rem;">
+        <thead>
+            <tr><th>Date</th><th>Person</th><th>Purpose</th><th>Given</th><th>Receipts</th><th>Returned</th><th>Balance</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for a in advances %}
+            <tr class="{% if a.is_aging %}row-warning{% endif %}">
+                <td class="muted small">{{ a.date_issued }}</td>
+                <td>{{ a.person }}</td>
+                <td class="muted small">{{ a.purpose|truncatechars:40 }}</td>
+                <td>{{ grant.currency }} {{ a.amount_given|floatformat:2 }}</td>
+                <td>{{ grant.currency }} {{ a.receipts_submitted|floatformat:2 }}</td>
+                <td>{{ grant.currency }} {{ a.cash_returned|floatformat:2 }}</td>
+                <td class="{% if a.balance_outstanding > 0 and a.is_aging %}text-danger{% endif %}">
+                    <strong>{{ grant.currency }} {{ a.balance_outstanding|floatformat:2 }}</strong>
+                    {% if a.is_aging %}<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:0.65rem;">Aging</span>{% endif %}
+                </td>
+                <td><span class="badge {% if a.is_reconciled %}badge-soft{% else %}badge-neutral{% endif %}">{% if a.is_reconciled %}Reconciled{% else %}Open{% endif %}</span></td>
+                <td>
+                    {% if not a.is_reconciled %}
+                    <details style="display:inline;">
+                        <summary class="button button-secondary button-sm">Reconcile</summary>
+                        <form method="post" action="{% url 'cash_advance_reconcile' a.pk %}" class="stack-form" style="margin-top:0.5rem;position:absolute;background:#fff;border:1px solid var(--line);border-radius:8px;padding:1rem;z-index:10;min-width:260px;">
+                            {% csrf_token %}
+                            <p><label>Receipts submitted</label><input type="number" name="receipts_submitted" step="0.01" value="{{ a.receipts_submitted }}" class="form-control"></p>
+                            <p><label>Cash returned</label><input type="number" name="cash_returned" step="0.01" value="{{ a.cash_returned }}" class="form-control"></p>
+                            <p><label>Notes</label><textarea name="notes" rows="2" class="form-control">{{ a.notes }}</textarea></p>
+                            <button type="submit" class="button button-sm">Save</button>
+                        </form>
+                    </details>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted small" style="margin-bottom:0.75rem;">No cash advances recorded.</p>
+    {% endif %}
+    <details class="add-form-details">
+        <summary class="button button-secondary button-sm">+ Record advance</summary>
+        <form method="post" action="{% url 'cash_advance_add' grant.pk %}" class="stack-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            {{ advance_form.as_p }}
+            <button type="submit" class="button button-sm">Save advance</button>
+        </form>
+    </details>
+</div>
+
+<script>
+document.querySelectorAll('.js-pct').forEach(function(el){
+    el.style.width = (el.dataset.width || 0) + '%';
+});
+</script>
+{% endblock %}

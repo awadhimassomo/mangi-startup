@@ -1,0 +1,37 @@
+{% extends "workspace/base.html" %}
+{% block title %}Tasks{% endblock %}
+{% block page_title %}Tasks & Reminders{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Task board</h2>
+        <a href="{% url 'task_add' %}" class="button">Create task</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Due date</th>
+                    <th>Assigned to</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td><a href="{% url 'task_edit' task.pk %}">{{ task.title }}</a></td>
+                        <td><span class="badge">{{ task.get_status_display }}</span></td>
+                        <td>{{ task.get_priority_display }}</td>
+                        <td>{{ task.due_date|default:"-" }}</td>
+                        <td>{{ task.assigned_to|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No tasks yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

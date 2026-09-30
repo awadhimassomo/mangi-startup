@@ -1,0 +1,34 @@
+{% extends "workspace/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <h2>Notifications</h2>
+        <a href="{% url 'notifications_mark_all_read' %}" class="button button-secondary button-sm">Mark all read</a>
+    </div>
+    {% if notifications %}
+    <ul class="notif-list">
+        {% for n in notifications %}
+        <li class="notif-item {% if not n.is_read %}notif-unread{% endif %} notif-{{ n.level }}">
+            <div class="notif-body">
+                <strong>{{ n.title }}</strong>
+                {% if n.body %}<p class="muted small" style="margin:0.2rem 0 0;">{{ n.body }}</p>{% endif %}
+                <span class="muted small">{{ n.created_at|date:"Y-m-d H:i" }}</span>
+            </div>
+            <div class="notif-actions">
+                {% if n.link %}
+                    <a href="{{ n.link }}" class="button button-secondary button-sm">View</a>
+                {% endif %}
+                {% if not n.is_read %}
+                    <a href="{% url 'notification_read' n.pk %}" class="button button-secondary button-sm">✓ Read</a>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted" style="padding:1.5rem 0;">No notifications.</p>
+    {% endif %}
+</div>
+{% endblock %}

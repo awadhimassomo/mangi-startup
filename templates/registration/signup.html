@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - Mangi FundOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mangi-login-20260601">
+</head>
+<body>
+    <main class="auth-shell">
+        <section class="brand-panel">
+            <a href="/" class="brand-logo" aria-label="Mangi FundOS home">
+                <span class="auth-brand-mark">MF</span>
+                <span>Mangi FundOS</span>
+            </a>
+            <h1>Build your fundraising operating system.</h1>
+            <p>Create your startup workspace and start tracking opportunities, grants, documents, budgets, tasks, and reports in one place.</p>
+            <ul class="brand-points">
+                <li>Set up a dedicated startup workspace</li>
+                <li>Invite teammates with role-based access</li>
+                <li>Move from scattered spreadsheets to one dashboard</li>
+            </ul>
+        </section>
+
+        <section class="auth-panel">
+            <div class="auth-card auth-card-modern">
+                <h2>Create account</h2>
+                <p>Start your Mangi FundOS workspace.</p>
+
+                <form method="post" class="stack-form auth-form">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="submit-btn">Create account</button>
+                </form>
+
+                <p class="auth-footer">
+                    Already have an account?
+                    <a class="text-link" href="{% url 'login' %}">Sign in</a>
+                </p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

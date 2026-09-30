@@ -1,0 +1,115 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ opp.title }}{% endblock %}
+{% block page_title %}{{ opp.title }}{% endblock %}
+{% block content %}
+
+<div class="panel-header" style="margin-bottom:1.25rem;">
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span>
+        <span class="board-status board-status-{{ opp.status }}">{{ opp.get_status_display }}</span>
+        {% if opp.is_featured %}<span class="badge" style="background:#fef3c7;color:#92400e;">⭐ Featured</span>{% endif %}
+        {% for tag in opp.tag_list %}
+            <span class="badge badge-neutral" style="font-size:0.7rem;">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+        {% if pipeline_opportunity %}
+            <a href="{{ pipeline_opportunity.get_absolute_url }}" class="button button-sm">View in pipeline</a>
+        {% elif opp.status == "open" %}
+            <form method="post" action="{% url 'posted_opportunity_add_to_pipeline' opp.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="button button-sm">Add to pipeline</button>
+            </form>
+        {% endif %}
+        {% if is_staff %}
+            <a href="{% url 'posted_opportunity_edit' opp.pk %}" class="button button-secondary button-sm">Edit</a>
+        {% endif %}
+        <a href="{% url 'posted_opportunity_list' %}" class="button button-secondary button-sm">← Board</a>
+    </div>
+</div>
+
+{% if opp.poster_image %}
+<div class="opp-poster"><img src="{{ opp.poster_image.url }}" alt="{{ opp.title }}"></div>
+{% endif %}
+
+<section class="panel-grid-2" style="margin-bottom:1rem;">
+    <article class="panel">
+        <div class="panel-header"><h2>About this opportunity</h2></div>
+        <dl class="detail-grid">
+            <div><dt>Funder</dt><dd><strong>{{ opp.funder_name }}</strong></dd></div>
+            <div><dt>Type</dt><dd>{{ opp.get_opportunity_type_display }}</dd></div>
+            <div><dt>Status</dt><dd>{{ opp.get_status_display }}</dd></div>
+            <div><dt>Geographic focus</dt><dd>{{ opp.geographic_focus|default:"—" }}</dd></div>
+            <div><dt>Sector focus</dt><dd>{{ opp.sector_focus|default:"—" }}</dd></div>
+            <div><dt>Posted</dt><dd>{{ opp.created_at|date:"M d, Y" }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Financials &amp; deadline</h2></div>
+        <dl class="detail-grid">
+            <div><dt>Amount range</dt>
+                <dd>
+                    {% if opp.amount_min or opp.amount_max %}
+                        {{ opp.currency }}
+                        {% if opp.amount_min %}{{ opp.amount_min|floatformat:0 }}{% endif %}
+                        {% if opp.amount_min and opp.amount_max %} – {% endif %}
+                        {% if opp.amount_max %}{{ opp.amount_max|floatformat:0 }}{% endif %}
+                    {% else %}—{% endif %}
+                </dd>
+            </div>
+            <div><dt>Deadline</dt>
+                <dd {% if opp.is_deadline_soon %}style="color:var(--danger);font-weight:600;"{% endif %}>
+                    {% if opp.deadline %}
+                        {% if opp.is_deadline_soon %}⚠ {% endif %}{{ opp.deadline }}
+                    {% else %}—{% endif %}
+                </dd>
+            </div>
+            <div><dt>Apply link</dt>
+                <dd>{% if opp.application_link %}<a href="{{ opp.application_link }}" target="_blank" rel="noopener">Open application page →</a>{% else %}—{% endif %}</dd>
+            </div>
+        </dl>
+    </article>
+</section>
+
+<article class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header">
+        <h2>AI startup match</h2>
+        <span class="badge badge-soft">{{ fit_assessment.score }}/5 fit</span>
+    </div>
+    <div class="detail-grid">
+        <div><dt>Suggested probability</dt><dd>{{ fit_assessment.probability }}%</dd></div>
+        <div><dt>Matched keywords</dt><dd>{% if fit_assessment.matched_terms %}{{ fit_assessment.matched_terms|join:", " }}{% else %}None yet{% endif %}</dd></div>
+    </div>
+    <ul class="simple-list" style="margin-top:0.75rem;">
+        {% for reason in fit_assessment.reasons %}
+            <li>{{ reason }}</li>
+        {% endfor %}
+        {% for warning in fit_assessment.warnings %}
+            <li><span class="text-danger">{{ warning }}</span></li>
+        {% endfor %}
+    </ul>
+</article>
+
+{% if opp.short_description %}
+<article class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header"><h2>Overview</h2></div>
+    <p style="font-size:0.9rem;line-height:1.75;white-space:pre-line;">{{ opp.short_description }}</p>
+</article>
+{% endif %}
+
+{% if opp.eligibility %}
+<article class="panel" style="margin-bottom:1rem;">
+    <div class="panel-header"><h2>Eligibility &amp; requirements</h2></div>
+    <p style="font-size:0.9rem;line-height:1.75;white-space:pre-line;">{{ opp.eligibility }}</p>
+</article>
+{% endif %}
+
+{% if opp.status == "open" and opp.application_link %}
+<div style="text-align:center;padding:1.5rem 0;">
+    <a href="{{ opp.application_link }}" target="_blank" rel="noopener" class="button" style="padding:0.75rem 2rem;font-size:1rem;">
+        Apply for this opportunity →
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}

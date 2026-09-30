@@ -1,0 +1,438 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mangi FundOS — Fundraising OS for African Startups and NGOs</title>
+    <meta name="description" content="Track grants, manage your pipeline, and never miss a funding opportunity again. Built for African startups and NGOs by Mangi.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --accent: #C72C41;
+            --accent2: #EE4540;
+            --secondary: #801336;
+            --dark: #510A32;
+            --darker: #20142C;
+            --ink: #20142C;
+            --ink2: #374151;
+            --muted: #5f4f60;
+            --line: rgba(81, 10, 50, 0.18);
+            --surface: #fff;
+            --bg: #F9FAFB;
+            --brand-gradient: linear-gradient(180deg, #ee4540 0%, #c72c41 25%, #a61f3a 56%, #801336 78%, #510a32 100%);
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: Manrope, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); line-height: 1.6; }
+
+        /* ── NAV ── */
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 2rem;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+        .nav-brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+        .nav-brand-pill {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 800; font-size: 0.85rem;
+        }
+        .nav-brand span { font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+        .nav-links { display: flex; align-items: center; gap: 0.75rem; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.55rem 1.2rem; border-radius: 8px;
+            font-size: 0.88rem; font-weight: 600; text-decoration: none;
+            cursor: pointer; border: none; transition: opacity 0.15s, transform 0.15s;
+        }
+        .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        .btn-ghost { background: transparent; color: var(--muted); }
+        .btn-outline { background: transparent; color: var(--accent); border: 1.5px solid rgba(81, 10, 50, 0.18); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
+        .btn-lg { padding: 0.85rem 2rem; font-size: 1rem; border-radius: 10px; }
+        .btn-white { background: #fff; color: var(--accent); font-weight: 700; }
+
+        /* ── HERO ── */
+        .hero {
+            position: relative; overflow: hidden;
+            padding: 6rem 1.5rem 5rem;
+            text-align: center;
+            background: linear-gradient(160deg, rgba(238,69,64,0.08) 0%, rgba(128,19,54,0.08) 52%, #F9FAFB 100%);
+        }
+        .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            background: rgba(238, 69, 64, 0.12); color: var(--secondary);
+            padding: 0.3rem 0.9rem; border-radius: 999px;
+            font-size: 0.76rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.6rem);
+            font-weight: 900; line-height: 1.1; letter-spacing: -0.04em;
+            color: var(--ink); max-width: 750px; margin: 0 auto 1.25rem;
+        }
+        .hero h1 .grad {
+            background: linear-gradient(135deg, var(--accent2) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-sub {
+            font-size: 1.1rem; color: var(--muted); max-width: 520px;
+            margin: 0 auto 2.5rem; line-height: 1.7;
+        }
+        .hero-cta { display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+        .hero-trust {
+            margin-top: 2.5rem; color: var(--muted); font-size: 0.8rem;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .hero-trust svg { color: #10b981; }
+
+        /* ── LOGO BAR ── */
+        .logo-bar {
+            background: var(--bg); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+            padding: 1.25rem 2rem; text-align: center;
+        }
+        .logo-bar p { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+        .logo-bar-items { display: flex; align-items: center; justify-content: center; gap: 2.5rem; flex-wrap: wrap; }
+        .logo-bar-item { font-size: 0.9rem; font-weight: 700; color: #94a3b8; }
+
+        /* ── SECTION SHARED ── */
+        section { padding: 5rem 1.5rem; }
+        .section-inner { max-width: 1100px; margin: 0 auto; }
+        .section-label {
+            display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800;
+            letter-spacing: -0.03em; color: var(--ink); margin-bottom: 0.75rem;
+        }
+        .section-sub { color: var(--muted); max-width: 520px; line-height: 1.7; }
+        .text-center { text-align: center; }
+        .text-center .section-sub { margin: 0 auto; }
+
+        /* ── FEATURES GRID ── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.25rem; margin-top: 3rem;
+        }
+        .feature-card {
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: 16px; padding: 1.75rem;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .feature-card:hover { box-shadow: 0 8px 32px rgba(199,44,65,0.14); transform: translateY(-3px); }
+        .feature-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 1rem; font-size: 1.3rem;
+        }
+        .fi-indigo { background: rgba(238, 69, 64, 0.08); }
+        .fi-pink   { background: #fdf2f8; }
+        .fi-teal   { background: #f0fdfa; }
+        .fi-orange { background: #fff7ed; }
+        .fi-green  { background: #f0fdf4; }
+        .fi-purple { background: #faf5ff; }
+        .feature-card h3 { font-size: 0.97rem; font-weight: 700; color: var(--ink); margin-bottom: 0.4rem; }
+        .feature-card p  { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+        /* ── HOW IT WORKS ── */
+        .how-section { background: var(--bg); }
+        .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin-top: 3rem; }
+        .step { text-align: center; }
+        .step-num {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            color: #fff; font-weight: 800; font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1rem;
+        }
+        .step h3 { font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 0.4rem; }
+        .step p  { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+        /* ── PRICING STRIP ── */
+        .pricing-strip {
+            background: var(--brand-gradient);
+            border-radius: 20px; padding: 3rem 2rem; text-align: center;
+            color: #fff; max-width: 860px; margin: 0 auto;
+        }
+        .pricing-strip h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+        .pricing-strip p  { color: rgba(255,255,255,0.75); margin-bottom: 2rem; font-size: 0.95rem; }
+        .pricing-cards-mini {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+            max-width: 540px; margin: 0 auto 2rem;
+        }
+        .pricing-mini-card {
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 14px; padding: 1.5rem; text-align: left;
+        }
+        .pricing-mini-card.popular { background: #fff; }
+        .pricing-mini-card.popular * { color: var(--ink) !important; }
+        .pricing-mini-card.popular .plan-mini-price { color: var(--accent) !important; }
+        .plan-mini-name { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); margin-bottom: 0.4rem; }
+        .plan-mini-price { font-size: 2rem; font-weight: 800; color: #fff; letter-spacing: -0.03em; }
+        .plan-mini-price span { font-size: 0.85rem; font-weight: 400; color: rgba(255,255,255,0.6); }
+        .plan-mini-seats { font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 0.25rem; }
+
+        /* ── TESTIMONIAL ── */
+        .testimonial-section { background: var(--bg); }
+        .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 3rem; }
+        .testimonial-card {
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: 16px; padding: 1.5rem;
+        }
+        .testimonial-card p { font-size: 0.9rem; color: var(--ink2); line-height: 1.65; margin-bottom: 1rem; font-style: italic; }
+        .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+        .testimonial-avatar {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+        }
+        .testimonial-author strong { font-size: 0.85rem; display: block; color: var(--ink); }
+        .testimonial-author span  { font-size: 0.78rem; color: var(--muted); }
+
+        /* ── CTA BANNER ── */
+        .cta-banner {
+            background: var(--darker); color: #fff;
+            padding: 5rem 1.5rem; text-align: center;
+        }
+        .cta-banner h2 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+        .cta-banner p  { color: #D1D5DB; margin-bottom: 2rem; font-size: 0.95rem; }
+
+        /* ── FOOTER ── */
+        footer {
+            background: #20142C; color: #D1D5DB;
+            padding: 2.5rem 2rem; text-align: center;
+            font-size: 0.82rem; border-top: 1px solid rgba(255,255,255,0.12);
+        }
+        footer a { color: #94a3b8; text-decoration: none; }
+        footer a:hover { color: #fff; }
+        .footer-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 600px) {
+            .nav-links .btn-ghost { display: none; }
+            .pricing-cards-mini { grid-template-columns: 1fr; }
+            section { padding: 3.5rem 1rem; }
+            .nav { padding: 0.65rem 0.9rem; gap: 0.5rem; }
+            .nav-brand { flex-shrink: 0; gap: 0.45rem; }
+            .nav-brand span { font-size: 0.95rem; white-space: nowrap; }
+            .nav-links { gap: 0.4rem; }
+            .nav-links .btn { padding: 0.45rem 0.75rem; font-size: 0.8rem; white-space: nowrap; }
+            .hero { padding: 3.5rem 1rem 3rem; }
+            .hero-sub { font-size: 1rem; margin-bottom: 1.75rem; }
+            .hero-cta .btn { width: 100%; justify-content: center; }
+        }
+        @media (max-width: 400px) {
+            .nav-brand span { display: none; }
+            .nav-links .btn-primary { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+    <a href="{% url 'home' %}" class="nav-brand">
+        <div class="nav-brand-pill">MF</div>
+        <span>Mangi FundOS</span>
+    </a>
+    <div class="nav-links">
+        <a href="#features" class="btn btn-ghost">Features</a>
+        <a href="#how" class="btn btn-ghost">How it works</a>
+        <a href="{% url 'pricing' %}" class="btn btn-ghost">Pricing</a>
+        <a href="{% url 'login' %}" class="btn btn-outline">Sign in</a>
+        <a href="{% url 'signup' %}" class="btn btn-primary">Get started free →</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-eyebrow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>
+        Built for African startups and NGOs
+    </div>
+    <h1>Your <span class="grad">Fundraising OS</span><br>in one place</h1>
+    <p class="hero-sub">Track every grant, manage your pipeline, stay audit-ready, and discover curated funding opportunities — all from one clean workspace.</p>
+    <div class="hero-cta">
+        <a href="{% url 'signup' %}" class="btn btn-primary btn-lg">Start for free →</a>
+        <a href="#how" class="btn btn-outline btn-lg">See how it works</a>
+    </div>
+    <p class="hero-trust">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        No credit card required &nbsp;·&nbsp; Set up in under 5 minutes &nbsp;·&nbsp; Cancel anytime
+    </p>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+    <div class="section-inner">
+        <div class="text-center">
+            <span class="section-label">Features</span>
+            <h2 class="section-title">Everything your startup needs to raise funding</h2>
+            <p class="section-sub">Stop juggling spreadsheets, emails, and folders. Mangi FundOS brings your entire fundraising operation into one place.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon fi-indigo">📊</div>
+                <h3>Pipeline Tracker</h3>
+                <p>Track every funding opportunity from first research to final decision. See your entire pipeline at a glance with status, amounts, and deadlines.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-pink">📋</div>
+                <h3>Opportunity Board</h3>
+                <p>Mangi curates and posts grants, competitions, accelerators, and more directly into your dashboard. Never miss an opportunity again.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-green">✅</div>
+                <h3>Grant Management</h3>
+                <p>Manage active grants end-to-end — disbursements, milestones, budget tracking, cash advances, and compliance reporting.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-teal">📁</div>
+                <h3>Data Room</h3>
+                <p>Store and organise all your pitch decks, financial statements, and compliance documents in a secure, categorised data room.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-orange">📈</div>
+                <h3>Investor Readiness Score</h3>
+                <p>Get an automatic score showing how ready you are to approach investors and funders — with specific recommendations to improve.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-purple">🔍</div>
+                <h3>Audit Log</h3>
+                <p>Every change tracked. Full audit trail for grant compliance reporting and internal governance — no more "who changed what?"</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="how-section">
+    <div class="section-inner">
+        <div class="text-center">
+            <span class="section-label">How it works</span>
+            <h2 class="section-title">Up and running in minutes</h2>
+            <p class="section-sub">No training needed. If you can use email, you can use Mangi FundOS.</p>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h3>Create your workspace</h3>
+                <p>Sign up, name your startup, and set your funding goal. Takes less than 2 minutes.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h3>Add your opportunities</h3>
+                <p>Import existing leads or add new ones. Track status, amounts, deadlines, and contact persons.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h3>Browse the board</h3>
+                <p>See what Mangi has posted — curated grants and programs matched to startups like yours.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <h3>Manage &amp; report</h3>
+                <p>When you win, move to grant management. Track spending, milestones, and stay audit-ready.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRICING STRIP -->
+<section>
+    <div class="section-inner">
+        <div class="pricing-strip">
+            <h2>Simple pricing that scales with you</h2>
+            <p>Start solo, grow to a team. No hidden fees.</p>
+            <div class="pricing-cards-mini">
+                <div class="pricing-mini-card">
+                    <p class="plan-mini-name">Solo</p>
+                    <p class="plan-mini-price">$5 <span>/ month</span></p>
+                    <p class="plan-mini-seats">1 user seat</p>
+                </div>
+                <div class="pricing-mini-card popular">
+                    <p class="plan-mini-name" style="color:var(--accent);">Team ⭐</p>
+                    <p class="plan-mini-price">$29 <span style="color:var(--muted);">/ month</span></p>
+                    <p class="plan-mini-seats" style="color:var(--muted);">Up to 3 users</p>
+                </div>
+            </div>
+            <a href="{% url 'pricing' %}" class="btn btn-white btn-lg">See full pricing →</a>
+        </div>
+    </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonial-section">
+    <div class="section-inner">
+        <div class="text-center">
+            <span class="section-label">What founders say</span>
+            <h2 class="section-title">Built for the way you actually work</h2>
+        </div>
+        <div class="testimonial-grid">
+            <div class="testimonial-card">
+                <p>"Before Mangi FundOS we were tracking everything in a Google Sheet. Now I can see our entire pipeline, know which deadlines are coming, and share updates with my co-founder in real time."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">AK</div>
+                    <div>
+                        <strong>Amina K.</strong>
+                        <span>Co-founder, AgriTech Startup · Dar es Salaam</span>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p>"The Opportunity Board alone is worth it. Mangi posts opportunities I would never have found on my own. We applied to two new grants last month because of it."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">JM</div>
+                    <div>
+                        <strong>James M.</strong>
+                        <span>Founder, FinTech Startup · Nairobi</span>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p>"Grant reporting used to take us days. The audit log and milestone tracking in Mangi FundOS means our reports basically write themselves."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">NB</div>
+                    <div>
+                        <strong>Neema B.</strong>
+                        <span>Operations Lead, CleanTech · Kampala</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="cta-banner">
+    <div class="section-inner">
+        <h2>Ready to take control of your fundraising?</h2>
+        <p>Join startups across East Africa already using Mangi FundOS.</p>
+        <a href="{% url 'signup' %}" class="btn btn-primary btn-lg">Create your free workspace →</a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="{% url 'pricing' %}">Pricing</a>
+        <a href="{% url 'login' %}">Sign in</a>
+        <a href="{% url 'signup' %}">Sign up</a>
+    </div>
+    <p>&copy; 2025 Mangi FundOS. All rights reserved. &nbsp;·&nbsp; Built by Mangi, for African startups and NGOs.</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "workspace/base.html" %}
+{% block title %}Edit Disbursement{% endblock %}
+{% block page_title %}Edit Disbursement{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:520px;">
+    <div class="panel-header">
+        <h2>Edit: {{ disbursement.name }}</h2>
+        <a href="{{ disbursement.grant.get_absolute_url }}#disbursements" class="button button-secondary button-sm">Cancel</a>
+    </div>
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="button" style="margin-top:0.5rem;">Save</button>
+    </form>
+</div>
+{% endblock %}
