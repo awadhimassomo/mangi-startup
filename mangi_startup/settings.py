@@ -29,7 +29,6 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "10.153.112.70",
-    "192.168.0.101",
 ]
 
 
@@ -124,7 +123,6 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"

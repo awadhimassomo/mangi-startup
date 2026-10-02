@@ -2967,6 +2967,78 @@ html, body {
     gap: 4px;
 }
 
+@media (max-width: 720px) {
+    .sidebar {
+        z-index: 1101;
+    }
+
+    .sidebar-backdrop {
+        z-index: 1100;
+    }
+
+    .topbar-left {
+        gap: 0.45rem;
+    }
+
+    .topbar-sidebar-btn {
+        display: inline-flex !important;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        border-radius: 9px;
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(199, 44, 65, 0.22);
+        position: relative;
+        z-index: 2;
+    }
+
+    .topbar-sidebar-btn svg {
+        display: block;
+        stroke: currentColor;
+    }
+
+    .topbar-sidebar-btn:focus-visible {
+        outline: 3px solid rgba(199, 44, 65, 0.28);
+        outline-offset: 2px;
+    }
+
+    .mob-tab-switcher {
+        display: flex !important;
+        align-items: stretch;
+        background: #f4eef1;
+        border: 1px solid rgba(81, 10, 50, 0.12);
+        border-radius: 12px;
+        padding: 4px;
+        gap: 3px;
+    }
+
+    .mob-tab-btn {
+        appearance: none;
+        -webkit-appearance: none;
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0.55rem 0.25rem;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #685762;
+        font: 700 0.72rem/1.2 'Manrope', 'Segoe UI', sans-serif;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .mob-tab-btn.active {
+        background: #fff;
+        color: var(--accent);
+        box-shadow: 0 2px 7px rgba(81, 10, 50, 0.12);
+    }
+}
+
 .mob-tab-btn {
     flex: 1;
     padding: 0.55rem 0.4rem;

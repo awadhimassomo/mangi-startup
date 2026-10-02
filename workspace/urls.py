@@ -50,6 +50,7 @@ urlpatterns = [
     path("grants/<int:grant_pk>/advances/add/", views.cash_advance_add_view, name="cash_advance_add"),
     path("advances/<int:pk>/reconcile/", views.cash_advance_reconcile_view, name="cash_advance_reconcile"),
     path("audit/", views.audit_log_view, name="audit_log"),
+    path("settings/", views.settings_view, name="settings"),
     path("notifications/", views.notification_list_view, name="notifications"),
     path("notifications/mark-read/", views.notification_mark_read_view, name="notifications_mark_all_read"),
     path("notifications/<int:pk>/read/", views.notification_mark_read_view, name="notification_read"),
@@ -69,6 +70,7 @@ urlpatterns = [
     path("ops/run-scraper/", views.ops_run_scraper, name="ops_run_scraper"),
     path("ops/opportunities/<int:pk>/toggle-status/", views.ops_opportunity_toggle_status, name="ops_opportunity_toggle_status"),
     # PWA & Web Push Notifications
+    path("sw.js", views.pwa_service_worker_view, name="pwa_service_worker"),
     path("api/pwa/vapid-public-key/", views.pwa_vapid_public_key_view, name="pwa_vapid_public_key"),
     path("api/pwa/subscribe/", views.pwa_subscribe_view, name="pwa_subscribe"),
     path("api/pwa/unsubscribe/", views.pwa_unsubscribe_view, name="pwa_unsubscribe"),

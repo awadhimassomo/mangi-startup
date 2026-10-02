@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -110,6 +111,12 @@ class PwaAndPushNotificationTests(TestCase):
             self.assertIn("FundOS", content)
             self.assertIn("icon-192.png", content)
 
+    def test_service_worker_is_served_from_root_scope(self):
+        response = self.client.get("/sw.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Service-Worker-Allowed"], "/")
+        self.assertIn("application/javascript", response["Content-Type"])
+
     def test_vapid_public_key_endpoint(self):
         response = self.client.get("/api/pwa/vapid-public-key/")
         self.assertEqual(response.status_code, 200)
@@ -137,4 +144,23 @@ class PwaAndPushNotificationTests(TestCase):
         res_unsub = self.client.post("/api/pwa/unsubscribe/", data=json.dumps(unsub_data), content_type="application/json")
         self.assertEqual(res_unsub.status_code, 200)
         self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 0)
+
+    def test_startup_user_cannot_send_test_push(self):
+        response = self.client.post("/api/pwa/test-notification/")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"], "Only operations admins can send test push notifications.")
+
+    @patch("workspace.push_service.send_push_to_user", return_value=1)
+    def test_operations_admin_can_send_test_push(self, send_push):
+        User = get_user_model()
+        admin = User.objects.create_superuser(
+            username="opsadmin", email="ops@example.com", password="pass12345"
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post("/api/pwa/test-notification/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        send_push.assert_called_once()
 

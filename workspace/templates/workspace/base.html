@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=fix-layout-20261002">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mobile-menu-layer-fix-20261002">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -37,8 +37,6 @@
 
     {# ── Mobile Backdrop & Overlay ── #}
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
-
     <div class="app-shell">
         <aside class="sidebar" id="appSidebar">
             <a href="{% url 'dashboard' %}" class="brand-mark">
@@ -95,6 +93,10 @@
                 </a>
 
                 <div class="nav-section-label">Settings & Ops</div>
+                <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.5 2.6-.08-.02a1.7 1.7 0 0 0-1.74.57l-.05.07h-3l-.05-.07a1.7 1.7 0 0 0-1.74-.57l-.08.02-1.5-2.6.06-.06A1.7 1.7 0 0 0 10.4 15l-.08-.04v-3l.08-.04a1.7 1.7 0 0 0-.34-1.88L10 9.98l1.5-2.6.08.02a1.7 1.7 0 0 0 1.74-.57l.05-.07h3l.05.07a1.7 1.7 0 0 0 1.74.57l.08-.02 1.5 2.6-.06.06a1.7 1.7 0 0 0-.34 1.88l.08.04v3z"/></svg>
+                    Settings
+                </a>
                 <a href="{% url 'notifications' %}" class="{% if 'notifications' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                     Notifications & Push
@@ -195,7 +197,6 @@
 
 <script>
     // ── Sidebar & Mobile Menu Drawer ─────────────────────────────────────────
-    const sidebarToggle = document.getElementById('sidebarToggle');
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobMoreBtn = document.getElementById('mobMoreBtn');
     const sidebar = document.getElementById('appSidebar');
@@ -213,7 +214,6 @@
         if (backdrop) backdrop.classList.remove('active');
     }
 
-    if (sidebarToggle) sidebarToggle.addEventListener('click', toggleMenu);
     if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMenu);
     if (mobMoreBtn) mobMoreBtn.addEventListener('click', toggleMenu);
     if (backdrop) backdrop.addEventListener('click', closeMenu);
@@ -226,7 +226,7 @@
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register("{% static 'workspace/sw.js' %}")
+            navigator.serviceWorker.register("{% url 'pwa_service_worker' %}", { scope: '/' })
                 .then(function(reg) {
                     console.log('PWA Service Worker registered:', reg.scope);
                 })
@@ -244,13 +244,20 @@
         }
     });
 
-    if (installBtn) {
-        installBtn.addEventListener('click', async function() {
-            if (!deferredPrompt) return;
+    window.FundOSPWA = {
+        async install() {
+            if (!deferredPrompt) return { outcome: 'unavailable' };
             deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
+            const choice = await deferredPrompt.userChoice;
             deferredPrompt = null;
             if (installBanner) installBanner.style.display = 'none';
+            return choice;
+        }
+    };
+
+    if (installBtn) {
+        installBtn.addEventListener('click', async function() {
+            await window.FundOSPWA.install();
         });
     }
 

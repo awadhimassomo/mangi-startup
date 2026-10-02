@@ -1137,6 +1137,17 @@ def notification_list_view(request):
 
 
 @login_required
+def settings_view(request):
+    startup, membership, redirect_response = require_startup_access(request)
+    if redirect_response:
+        return redirect_response
+    return render(request, "workspace/settings.html", {
+        "membership": membership,
+        "is_ops_admin": request.user.is_superuser,
+    })
+
+
+@login_required
 def notification_mark_read_view(request, pk=None):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
@@ -1456,6 +1467,17 @@ def ops_run_scraper(request):
 
 # ── PWA & Web Push Endpoints ──────────────────────────────────────────────────
 
+def pwa_service_worker_view(request):
+    """Serve the service worker from the origin root so it can control the app."""
+    from django.conf import settings
+
+    worker_path = settings.BASE_DIR / "static" / "workspace" / "sw.js"
+    response = HttpResponse(worker_path.read_text(encoding="utf-8"), content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
+
+
 @login_required
 def pwa_vapid_public_key_view(request):
     """Returns VAPID public key for web push subscription."""
@@ -1515,7 +1537,13 @@ def pwa_unsubscribe_view(request):
 @login_required
 @require_POST
 def pwa_test_push_view(request):
-    """Sends an immediate test push notification to user's registered devices."""
+    """Allows only operations admins to trigger a test push notification."""
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Only operations admins can send test push notifications."},
+            status=403,
+        )
+
     from .push_service import send_push_to_user
     sent_count = send_push_to_user(
         user=request.user,
