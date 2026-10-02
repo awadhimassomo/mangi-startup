@@ -29,6 +29,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "10.153.112.70",
+    "awadhi.pythonanywhere.com",
 ]
 
 
