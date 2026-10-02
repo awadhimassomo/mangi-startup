@@ -4,7 +4,15 @@
 {% block page_title %}Overview{% endblock %}
 {% block content %}
 
+{# ── Mobile Section Switcher ── #}
+<div class="mob-tab-switcher">
+    <button class="mob-tab-btn active" data-target="dash-sec-overview">Overview</button>
+    <button class="mob-tab-btn" data-target="dash-sec-charts">Charts & Pipeline</button>
+    <button class="mob-tab-btn" data-target="dash-sec-actions">Tasks & Alerts</button>
+</div>
+
 {# ── Top KPI gradient cards ── #}
+<div class="dash-section dash-sec-overview active">
 <div class="kpi-row">
     <div class="kpi-card kpi-indigo">
         <div class="kpi-icon">
@@ -23,7 +31,7 @@
         <div class="kpi-body">
             <p class="kpi-label">Active Pipeline</p>
             <p class="kpi-value">{{ active_pipeline|floatformat:0|intcomma }}</p>
-            <p class="kpi-sub">{{ active_opportunities_count }} opportunit{{ active_opportunities_count|pluralize:"y,ies" }} still being pursued &bull; not yet won</p>
+            <p class="kpi-sub">{{ active_opportunities_count }} active pursuit{{ active_opportunities_count|pluralize }}</p>
         </div>
     </div>
     <div class="kpi-card kpi-teal">
@@ -33,7 +41,7 @@
         <div class="kpi-body">
             <p class="kpi-label">Total Won</p>
             <p class="kpi-value">{{ won_total|floatformat:0|intcomma }}</p>
-            <p class="kpi-sub">{{ won_count }} opportunit{{ won_count|pluralize:"y,ies" }} successfully closed &bull; Weighted pipeline: {{ weighted_pipeline|floatformat:0|intcomma }}</p>
+            <p class="kpi-sub">{{ won_count }} closed &bull; Wtd: {{ weighted_pipeline|floatformat:0|intcomma }}</p>
         </div>
     </div>
     <div class="kpi-card kpi-orange">
@@ -67,10 +75,11 @@
         <span><strong>{{ losses_qtd }}</strong> loss{{ losses_qtd|pluralize:"es" }} this quarter</span>
     </div>
 </div>
+</div>
 
 {# ── Main body: charts + right column ── #}
 <div class="dash-body">
-    <div class="dash-main">
+    <div class="dash-main dash-section dash-sec-charts active">
 
         {# Charts #}
         <div class="panel-grid-2" style="margin-bottom:1rem;">
@@ -171,7 +180,7 @@
     </div>
 
     {# Right sidebar column #}
-    <div class="dash-side">
+    <div class="dash-side dash-section dash-sec-actions active">
 
         <article class="panel" style="margin-bottom:1rem;">
             <div class="panel-header">
@@ -239,6 +248,22 @@
 </div>
 
 <script>
+// ── Mobile Dashboard Segmented Switcher ──
+document.querySelectorAll('.mob-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.mob-tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const target = this.dataset.target;
+        document.querySelectorAll('.dash-section').forEach(function(sec) {
+            if (sec.classList.contains(target)) {
+                sec.classList.add('active');
+            } else {
+                sec.classList.remove('active');
+            }
+        });
+    });
+});
+
 document.querySelectorAll('.js-pct').forEach(function(el){
     el.style.width = (el.dataset.width || 0) + '%';
 });

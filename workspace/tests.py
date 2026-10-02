@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -83,9 +85,56 @@ class UserAdminEmailTests(TestCase):
                 "username": user.username,
                 "email": "founder@example.com",
                 "password": user.password,
+                "date_joined": user.date_joined,
             },
             instance=user,
         )
 
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["email"], "founder@example.com")
+
+
+class PwaAndPushNotificationTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="tester", email="tester@example.com", password="pass12345")
+        self.client.login(username="tester", password="pass12345")
+
+    def test_pwa_manifest_route_and_static_exists(self):
+        from django.conf import settings
+        import os
+        manifest_path = settings.BASE_DIR / "static" / "workspace" / "manifest.json"
+        self.assertTrue(os.path.exists(manifest_path))
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            self.assertIn("FundOS", content)
+            self.assertIn("icon-192.png", content)
+
+    def test_vapid_public_key_endpoint(self):
+        response = self.client.get("/api/pwa/vapid-public-key/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("publicKey", data)
+        self.assertTrue(len(data["publicKey"]) > 20)
+
+    def test_subscribe_and_unsubscribe_endpoint(self):
+        from .models import PushSubscription
+
+        sub_data = {
+            "endpoint": "https://fcm.googleapis.com/fcm/send/test-token-12345",
+            "keys": {
+                "p256dh": "BL1234567890abcdef",
+                "auth": "authSecret123"
+            }
+        }
+        # Subscribe
+        res = self.client.post("/api/pwa/subscribe/", data=json.dumps(sub_data), content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 1)
+
+        # Unsubscribe
+        unsub_data = {"endpoint": "https://fcm.googleapis.com/fcm/send/test-token-12345"}
+        res_unsub = self.client.post("/api/pwa/unsubscribe/", data=json.dumps(unsub_data), content_type="application/json")
+        self.assertEqual(res_unsub.status_code, 200)
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 0)
+

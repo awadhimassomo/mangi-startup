@@ -1,5 +1,6 @@
 import calendar as cal_module
 import csv
+import json
 from decimal import Decimal
 
 from django.contrib import messages
@@ -7,9 +8,10 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db.models import Count, Sum
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
@@ -1418,3 +1420,82 @@ def ops_opportunity_toggle_status(request, pk):
     opp.save(update_fields=["status", "updated_at"])
     messages.success(request, f"'{opp.title}' status updated to {opp.get_status_display()}.")
     return redirect("ops_dashboard")
+
+
+# ── PWA & Web Push Endpoints ──────────────────────────────────────────────────
+
+@login_required
+def pwa_vapid_public_key_view(request):
+    """Returns VAPID public key for web push subscription."""
+    from .push_service import get_vapid_public_key
+    try:
+        public_key = get_vapid_public_key()
+        return JsonResponse({"publicKey": public_key})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def pwa_subscribe_view(request):
+    """Saves a browser push subscription for the logged-in user."""
+    from .models import PushSubscription
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        endpoint = data.get("endpoint")
+        keys = data.get("keys", {})
+        p256dh = keys.get("p256dh")
+        auth = keys.get("auth")
+        user_agent = request.META.get("HTTP_USER_AGENT", "")[:500]
+
+        if not endpoint or not p256dh or not auth:
+            return JsonResponse({"error": "Missing subscription parameters"}, status=400)
+
+        PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                "user": request.user,
+                "p256dh": p256dh,
+                "auth": auth,
+                "user_agent": user_agent,
+            },
+        )
+        return JsonResponse({"status": "subscribed"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def pwa_unsubscribe_view(request):
+    """Removes a browser push subscription."""
+    from .models import PushSubscription
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        endpoint = data.get("endpoint")
+        if endpoint:
+            PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+        return JsonResponse({"status": "unsubscribed"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def pwa_test_push_view(request):
+    """Sends an immediate test push notification to user's registered devices."""
+    from .push_service import send_push_to_user
+    sent_count = send_push_to_user(
+        user=request.user,
+        title="FundOS Mobile Notifications Active!",
+        body="You will now receive milestone, budget, and funding updates directly on your device.",
+        link="/notifications/",
+        tag="fundos-test",
+    )
+    if sent_count > 0:
+        return JsonResponse({"status": "success", "sent": sent_count})
+    return JsonResponse(
+        {"status": "no_active_subscriptions", "message": "No active device subscriptions found."},
+        status=400,
+    )
+

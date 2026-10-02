@@ -1,10 +1,29 @@
 {% extends "workspace/base.html" %}
-{% block title %}Notifications{% endblock %}
+{% block title %}Notifications & Push{% endblock %}
 {% block page_title %}Notifications{% endblock %}
 {% block content %}
+
+{# ── Push Notification Device Settings ── #}
+<div class="panel" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #fff7f7 100%); border-left: 4px solid var(--accent);">
+    <div class="panel-header" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+            <h2>Mobile & Browser Push Notifications</h2>
+            <p class="muted small" style="margin-top: 0.2rem;">Get real-time updates for milestone deadlines, expense approvals, and new funding matches on your phone.</p>
+        </div>
+        <div class="push-status-wrap" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <span id="pushStatusBadge" class="badge badge-neutral">Checking status...</span>
+            <button type="button" id="pushToggleBtn" class="button button-primary button-sm">Enable Mobile Push</button>
+            <button type="button" id="pushTestBtn" class="button button-secondary button-sm" style="display: none;">Send Test Push</button>
+        </div>
+    </div>
+    <div id="pushNotice" class="muted small" style="margin-top: 0.5rem; font-size: 0.82rem;">
+        <em>Tip for iOS (iPhone/iPad): Add this app to your Home Screen from Safari to enable lock-screen notifications.</em>
+    </div>
+</div>
+
 <div class="panel">
     <div class="panel-header">
-        <h2>Notifications</h2>
+        <h2>Recent In-App Notifications</h2>
         <a href="{% url 'notifications_mark_all_read' %}" class="button button-secondary button-sm">Mark all read</a>
     </div>
     {% if notifications %}
@@ -31,4 +50,71 @@
     <p class="muted" style="padding:1.5rem 0;">No notifications.</p>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", async function() {
+    const statusBadge = document.getElementById("pushStatusBadge");
+    const toggleBtn = document.getElementById("pushToggleBtn");
+    const testBtn = document.getElementById("pushTestBtn");
+
+    if (!window.FundOSPush || !await window.FundOSPush.isSupported()) {
+        statusBadge.textContent = "Push Not Supported";
+        statusBadge.className = "badge badge-neutral";
+        toggleBtn.style.display = "none";
+        return;
+    }
+
+    async function updatePushUI() {
+        const sub = await window.FundOSPush.getSubscription();
+        if (sub && Notification.permission === "granted") {
+            statusBadge.textContent = "● Push Active on this Device";
+            statusBadge.className = "badge badge-success";
+            toggleBtn.textContent = "Disable Push";
+            toggleBtn.className = "button button-secondary button-sm";
+            testBtn.style.display = "inline-flex";
+        } else {
+            statusBadge.textContent = "Push Inactive";
+            statusBadge.className = "badge badge-neutral";
+            toggleBtn.textContent = "Enable Mobile Push";
+            toggleBtn.className = "button button-primary button-sm";
+            testBtn.style.display = "none";
+        }
+    }
+
+    await updatePushUI();
+
+    toggleBtn.addEventListener("click", async function() {
+        toggleBtn.disabled = true;
+        try {
+            const sub = await window.FundOSPush.getSubscription();
+            if (sub) {
+                await window.FundOSPush.unsubscribe();
+            } else {
+                await window.FundOSPush.subscribe();
+            }
+            await updatePushUI();
+        } catch (err) {
+            alert("Push Notification setup error: " + err.message);
+        } finally {
+            toggleBtn.disabled = false;
+        }
+    });
+
+    testBtn.addEventListener("click", async function() {
+        testBtn.disabled = true;
+        try {
+            const res = await window.FundOSPush.sendTest();
+            if (res.status === "success") {
+                alert("Test notification sent! Check your notification tray or lock screen.");
+            } else {
+                alert("Could not deliver test notification: " + (res.message || res.error || "Unknown error"));
+            }
+        } catch (err) {
+            alert("Error triggering test push: " + err.message);
+        } finally {
+            testBtn.disabled = false;
+        }
+    });
+});
+</script>
 {% endblock %}

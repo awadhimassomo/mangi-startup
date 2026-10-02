@@ -67,4 +67,9 @@ urlpatterns = [
     path("ops/", views.ops_dashboard, name="ops_dashboard"),
     path("ops/run-agent/", views.ops_run_agent, name="ops_run_agent"),
     path("ops/opportunities/<int:pk>/toggle-status/", views.ops_opportunity_toggle_status, name="ops_opportunity_toggle_status"),
+    # PWA & Web Push Notifications
+    path("api/pwa/vapid-public-key/", views.pwa_vapid_public_key_view, name="pwa_vapid_public_key"),
+    path("api/pwa/subscribe/", views.pwa_subscribe_view, name="pwa_subscribe"),
+    path("api/pwa/unsubscribe/", views.pwa_unsubscribe_view, name="pwa_unsubscribe"),
+    path("api/pwa/test-notification/", views.pwa_test_push_view, name="pwa_test_notification"),
 ]

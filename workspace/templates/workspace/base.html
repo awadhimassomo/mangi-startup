@@ -3,22 +3,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
     <meta name="theme-color" content="#C72C41">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FundOS">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'workspace/icon-192.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'workspace/apple-touch-icon.png' %}">
     <link rel="manifest" href="{% static 'workspace/manifest.json' %}">
     <title>{% block title %}Mangi FundOS{% endblock %} — Mangi FundOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mobile-20260930b">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=pwa-mobile-20261002">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    {# ── PWA Install Banner ── #}
+    <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
+        <div class="pwa-banner-content">
+            <img src="{% static 'workspace/icon-192.png' %}" alt="FundOS App Icon" class="pwa-banner-icon">
+            <div class="pwa-banner-text">
+                <strong>Install Mangi FundOS</strong>
+                <span>Add to your phone for instant notifications & offline access</span>
+            </div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button id="pwaInstallBtn" class="button button-primary button-sm">Install</button>
+            <button id="pwaDismissBtn" class="button button-ghost button-sm" aria-label="Dismiss">&times;</button>
+        </div>
+    </div>
+
     <div class="app-shell">
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
         <aside class="sidebar" id="appSidebar">
             <a href="{% url 'dashboard' %}" class="brand-mark">
@@ -29,62 +47,66 @@
                 </div>
             </a>
             <nav class="nav-links">
-                <a href="{% url 'dashboard' %}">
+                <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
                     Dashboard
                 </a>
-                <a href="{% url 'posted_opportunity_list' %}">
+                <a href="{% url 'posted_opportunity_list' %}" class="{% if 'board' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                     Opportunity Board
                 </a>
-                <a href="{% url 'opportunity_list' %}">
+                <a href="{% url 'opportunity_list' %}" class="{% if 'opportunities' in request.path and 'board' not in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
                     My Pipeline
                 </a>
-                <a href="{% url 'grant_list' %}">
+                <a href="{% url 'grant_list' %}" class="{% if 'grants' in request.path or 'disbursements' in request.path or 'milestones' in request.path or 'advances' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     Grants
                 </a>
-                <a href="{% url 'budget_list' %}">
+                <a href="{% url 'budget_list' %}" class="{% if 'budgets' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                     Budgets
                 </a>
-                <a href="{% url 'document_list' %}">
+                <a href="{% url 'document_list' %}" class="{% if 'documents' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                     Data Room
                 </a>
-                <a href="{% url 'contact_list' %}">
+                <a href="{% url 'contact_list' %}" class="{% if 'contacts' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Contacts
                 </a>
-                <a href="{% url 'task_list' %}">
+                <a href="{% url 'task_list' %}" class="{% if 'tasks' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
                     Tasks
                 </a>
-                <a href="{% url 'quick_expense' %}">
+                <a href="{% url 'quick_expense' %}" class="{% if 'quick-expense' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                     Quick Expense
                 </a>
-                <a href="{% url 'reports' %}">
+                <a href="{% url 'reports' %}" class="{% if 'reports' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
                     Reports
                 </a>
-                <a href="{% url 'team_list' %}">
+                <a href="{% url 'team_list' %}" class="{% if 'team' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Team
                 </a>
 
-                <div class="nav-section-label">Profile</div>
-                <a href="{% url 'startup_profile' %}">
+                <div class="nav-section-label">Settings & Ops</div>
+                <a href="{% url 'notifications' %}" class="{% if 'notifications' in request.path %}active{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                    Notifications & Push
+                </a>
+                <a href="{% url 'startup_profile' %}" class="{% if 'startup/profile' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
                     Startup Profile
                 </a>
                 {% if current_membership.role == "super_admin" or current_membership.role == "startup_admin" %}
-                <a href="{% url 'exchange_rates' %}">
+                <a href="{% url 'exchange_rates' %}" class="{% if 'exchange-rates' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     FX Rates
                 </a>
-                <a href="{% url 'audit_log' %}">
+                <a href="{% url 'audit_log' %}" class="{% if 'audit' in request.path %}active{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     System Audit
                 </a>
@@ -102,18 +124,27 @@
         </aside>
         <div class="main-panel">
             <header class="topbar">
-                <div>
-                    <p class="eyebrow">Fundraising Workspace</p>
-                    <h1>{% block page_title %}Mangi FundOS{% endblock %}</h1>
+                <div class="topbar-left">
+                    <button class="topbar-sidebar-btn" id="mobileMenuBtn" aria-label="Open menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div>
+                        <p class="eyebrow">Fundraising Workspace</p>
+                        <h1>{% block page_title %}Mangi FundOS{% endblock %}</h1>
+                    </div>
                 </div>
                 <div class="topbar-meta">
+                    <a href="{% url 'quick_expense' %}" class="topbar-quick-btn" title="Quick Expense">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        <span>Expense</span>
+                    </a>
                     <a href="{% url 'notifications' %}" class="notif-bell" title="Notifications">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                         {% if unread_notifications %}<span class="notif-count">{{ unread_notifications }}</span>{% endif %}
                     </a>
-                    <span class="badge badge-soft">{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <span class="badge badge-soft user-badge">{{ request.user.get_full_name|default:request.user.username }}</span>
                     {% if current_startup %}
-                        <span class="badge badge-neutral">{{ current_startup.country }}</span>
+                        <span class="badge badge-neutral startup-badge">{{ current_startup.country }}</span>
                     {% endif %}
                 </div>
             </header>
@@ -129,22 +160,212 @@
             </main>
         </div>
     </div>
+
+    {# ── Mobile Bottom Navigation Bar ── #}
+    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+        <a href="{% url 'dashboard' %}" class="mob-nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            <span>Home</span>
+        </a>
+        <a href="{% url 'opportunity_list' %}" class="mob-nav-item {% if 'opportunities' in request.path and 'board' not in request.path %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <span>Pipeline</span>
+        </a>
+        <a href="{% url 'quick_expense' %}" class="mob-nav-item mob-nav-center {% if 'quick-expense' in request.path %}active{% endif %}" title="Add Expense">
+            <div class="mob-center-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            </div>
+            <span>Expense</span>
+        </a>
+        <a href="{% url 'grant_list' %}" class="mob-nav-item {% if 'grants' in request.path %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Grants</span>
+        </a>
+        <a href="{% url 'posted_opportunity_list' %}" class="mob-nav-item {% if 'board' in request.path %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Board</span>
+        </a>
+        <button type="button" class="mob-nav-item mob-nav-menu-btn" id="mobMoreBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            <span>More</span>
+        </button>
+    </nav>
+
 <script>
-    const toggle = document.getElementById('sidebarToggle');
+    // ── Sidebar & Mobile Menu Drawer ─────────────────────────────────────────
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobMoreBtn = document.getElementById('mobMoreBtn');
     const sidebar = document.getElementById('appSidebar');
-    if (toggle && sidebar) {
-        toggle.addEventListener('click', function() {
-            sidebar.classList.toggle('sidebar-open');
-        });
-        document.addEventListener('click', function(e) {
-            if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
-                sidebar.classList.remove('sidebar-open');
-            }
-        });
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    function toggleMenu() {
+        if (!sidebar) return;
+        const isOpen = sidebar.classList.toggle('sidebar-open');
+        if (backdrop) backdrop.classList.toggle('active', isOpen);
     }
+
+    function closeMenu() {
+        if (!sidebar) return;
+        sidebar.classList.remove('sidebar-open');
+        if (backdrop) backdrop.classList.remove('active');
+    }
+
+    if (sidebarToggle) sidebarToggle.addEventListener('click', toggleMenu);
+    if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMenu);
+    if (mobMoreBtn) mobMoreBtn.addEventListener('click', toggleMenu);
+    if (backdrop) backdrop.addEventListener('click', closeMenu);
+
+    // ── PWA Service Worker & Install Prompt ─────────────────────────────────
+    let deferredPrompt;
+    const installBanner = document.getElementById('pwaInstallBanner');
+    const installBtn = document.getElementById('pwaInstallBtn');
+    const dismissBtn = document.getElementById('pwaDismissBtn');
+
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register("{% static 'workspace/sw.js' %}");
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register("{% static 'workspace/sw.js' %}")
+                .then(function(reg) {
+                    console.log('PWA Service Worker registered:', reg.scope);
+                })
+                .catch(function(err) {
+                    console.warn('PWA SW registration failed:', err);
+                });
+        });
     }
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (installBanner && !localStorage.getItem('fundos_pwa_dismissed')) {
+            installBanner.style.display = 'flex';
+        }
+    });
+
+    if (installBtn) {
+        installBtn.addEventListener('click', async function() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            if (installBanner) installBanner.style.display = 'none';
+        });
+    }
+
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            if (installBanner) installBanner.style.display = 'none';
+            localStorage.setItem('fundos_pwa_dismissed', 'true');
+        });
+    }
+
+    // ── Web Push Notification Client Helper ──────────────────────────────────
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    window.FundOSPush = {
+        async isSupported() {
+            return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+        },
+
+        async getSubscription() {
+            if (!('serviceWorker' in navigator)) return null;
+            const reg = await navigator.serviceWorker.ready;
+            return await reg.pushManager.getSubscription();
+        },
+
+        async subscribe() {
+            if (!await this.isSupported()) {
+                throw new Error("Push notifications are not supported by this browser.");
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                throw new Error("Notification permission was denied.");
+            }
+
+            // Fetch VAPID public key
+            const res = await fetch("{% url 'pwa_vapid_public_key' %}");
+            const data = await res.json();
+            if (!data.publicKey) throw new Error("Could not retrieve VAPID key.");
+
+            const convertedKey = urlBase64ToUint8Array(data.publicKey);
+            const reg = await navigator.serviceWorker.ready;
+
+            let subscription = await reg.pushManager.getSubscription();
+            if (!subscription) {
+                subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: convertedKey
+                });
+            }
+
+            // Save subscription to backend
+            const subData = subscription.toJSON();
+            const saveRes = await fetch("{% url 'pwa_subscribe' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify(subData)
+            });
+
+            if (!saveRes.ok) throw new Error("Failed to save push subscription on server.");
+            return true;
+        },
+
+        async unsubscribe() {
+            const sub = await this.getSubscription();
+            if (sub) {
+                const subData = sub.toJSON();
+                await sub.unsubscribe();
+                await fetch("{% url 'pwa_unsubscribe' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify(subData)
+                });
+            }
+            return true;
+        },
+
+        async sendTest() {
+            const res = await fetch("{% url 'pwa_test_notification' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                }
+            });
+            return await res.json();
+        }
+    };
 </script>
 </body>
 </html>
