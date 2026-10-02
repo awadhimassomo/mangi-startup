@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=mobile-menu-layer-fix-20261002">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=push-json-mobile-header-v2-20261002">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -317,8 +317,11 @@
             }
 
             // Fetch VAPID public key
-            const res = await fetch("{% url 'pwa_vapid_public_key' %}");
-            const data = await res.json();
+            const res = await fetch("{% url 'pwa_vapid_public_key' %}", {
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin"
+            });
+            const data = await this.readJsonResponse(res, "VAPID key request");
             if (!data.publicKey) throw new Error("Could not retrieve VAPID key.");
 
             const convertedKey = urlBase64ToUint8Array(data.publicKey);
@@ -343,8 +346,30 @@
                 body: JSON.stringify(subData)
             });
 
-            if (!saveRes.ok) throw new Error("Failed to save push subscription on server.");
+            const saveData = await this.readJsonResponse(saveRes, "Saving push subscription");
+            if (!saveRes.ok || saveData.status !== "subscribed") {
+                throw new Error(saveData.error || "Failed to save push subscription on server.");
+            }
             return true;
+        },
+
+        async readJsonResponse(response, action) {
+            const contentType = response.headers.get("content-type") || "";
+            const body = await response.text();
+            if (!contentType.includes("application/json")) {
+                if (response.redirected || /<html|<!doctype/i.test(body)) {
+                    throw new Error(`${action} returned a web page instead of JSON. Your session may have expired, or the updated app routes may not be deployed; sign in again and reload the PythonAnywhere web app.`);
+                }
+                throw new Error(`${action} returned an unexpected response (HTTP ${response.status}).`);
+            }
+            let data;
+            try {
+                data = JSON.parse(body);
+            } catch (error) {
+                throw new Error(`${action} returned invalid JSON (HTTP ${response.status}).`);
+            }
+            if (!response.ok) throw new Error(data.error || data.message || `${action} failed (HTTP ${response.status}).`);
+            return data;
         },
 
         async unsubscribe() {
@@ -372,7 +397,7 @@
                     "X-CSRFToken": getCookie("csrftoken")
                 }
             });
-            return await res.json();
+            return await this.readJsonResponse(res, "Test push request");
         }
     };
 </script>

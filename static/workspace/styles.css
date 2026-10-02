@@ -2728,12 +2728,69 @@ html, body {
     }
 
     .topbar-quick-btn span {
-        display: none;
+        display: inline;
     }
 
     .topbar-quick-btn {
-        padding: 0.35rem;
-        border-radius: 50%;
+        gap: 0.25rem;
+        padding: 0.3rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        flex-shrink: 0;
+    }
+
+    .topbar-meta {
+        flex-wrap: nowrap;
+        gap: 0.35rem;
+        flex-shrink: 0;
+    }
+
+    .notif-bell {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+    }
+
+    .topbar {
+        padding: 0.6rem 0.55rem;
+        gap: 0.35rem;
+    }
+
+    .topbar-left {
+        min-width: 0;
+        gap: 0.4rem;
+    }
+
+    .topbar-left > div {
+        min-width: 0;
+    }
+
+    .topbar h1 {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .topbar-meta {
+        flex-wrap: nowrap;
+        gap: 0.3rem;
+        flex-shrink: 0;
+    }
+
+    .topbar-quick-btn {
+        flex-shrink: 0;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.72rem;
+    }
+
+    .topbar-quick-btn span {
+        display: inline;
+    }
+
+    .notif-bell {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
     }
 }
 

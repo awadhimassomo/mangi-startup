@@ -124,6 +124,13 @@ class PwaAndPushNotificationTests(TestCase):
         self.assertIn("publicKey", data)
         self.assertTrue(len(data["publicKey"]) > 20)
 
+    def test_vapid_public_key_endpoint_is_json_for_signed_out_visitors(self):
+        self.client.logout()
+        response = self.client.get("/api/pwa/vapid-public-key/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertIn("publicKey", response.json())
+
     def test_subscribe_and_unsubscribe_endpoint(self):
         from .models import PushSubscription
 

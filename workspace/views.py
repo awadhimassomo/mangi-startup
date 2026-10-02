@@ -1478,9 +1478,8 @@ def pwa_service_worker_view(request):
     return response
 
 
-@login_required
 def pwa_vapid_public_key_view(request):
-    """Returns VAPID public key for web push subscription."""
+    """Returns the public VAPID key; it is safe to expose to unauthenticated clients."""
     from .push_service import get_vapid_public_key
     try:
         public_key = get_vapid_public_key()
