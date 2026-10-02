@@ -66,6 +66,7 @@ urlpatterns = [
     # Superadmin Ops Dashboard
     path("ops/", views.ops_dashboard, name="ops_dashboard"),
     path("ops/run-agent/", views.ops_run_agent, name="ops_run_agent"),
+    path("ops/run-scraper/", views.ops_run_scraper, name="ops_run_scraper"),
     path("ops/opportunities/<int:pk>/toggle-status/", views.ops_opportunity_toggle_status, name="ops_opportunity_toggle_status"),
     # PWA & Web Push Notifications
     path("api/pwa/vapid-public-key/", views.pwa_vapid_public_key_view, name="pwa_vapid_public_key"),

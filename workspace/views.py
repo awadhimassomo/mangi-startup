@@ -1422,6 +1422,38 @@ def ops_opportunity_toggle_status(request, pk):
     return redirect("ops_dashboard")
 
 
+@login_required
+def ops_run_scraper(request):
+    """Triggers the automated opportunity web scraper agent."""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Superadmin access only.")
+    if request.method != "POST":
+        return redirect("ops_dashboard")
+
+    from .scraper_agent import run_opportunity_scraper
+
+    custom_url = request.POST.get("custom_url", "").strip()
+    custom_urls = [custom_url] if custom_url else None
+
+    stats = run_opportunity_scraper(acting_user=request.user, custom_urls=custom_urls)
+    
+    if stats["created"] > 0:
+        messages.success(
+            request,
+            f"Scraper Agent finished: Ingested {stats['created']} new opportunities "
+            f"({stats['skipped_duplicates']} duplicates skipped). Auto-match & notifications dispatched!"
+        )
+    else:
+        messages.info(
+            request,
+            f"Scraper Agent finished: {stats['scraped']} items analyzed. No new opportunities found "
+            f"({stats['skipped_duplicates']} already exist in database)."
+        )
+
+    return redirect("ops_dashboard")
+
+
+
 # ── PWA & Web Push Endpoints ──────────────────────────────────────────────────
 
 @login_required

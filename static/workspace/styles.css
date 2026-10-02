@@ -874,6 +874,10 @@ a:hover {
 
 /* ── Dashboard body layout ────────────── */
 
+.dash-section {
+    display: block;
+}
+
 .dash-body {
     display: grid;
     grid-template-columns: 1fr 320px;

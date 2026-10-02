@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=pwa-mobile-20261002">
+    <link rel="stylesheet" href="{% static 'workspace/styles.css' %}?v=fix-layout-20261002">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -35,9 +35,11 @@
         </div>
     </div>
 
+    {# ── Mobile Backdrop & Overlay ── #}
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
+
     <div class="app-shell">
-        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
         <aside class="sidebar" id="appSidebar">
             <a href="{% url 'dashboard' %}" class="brand-mark">
                 <span class="brand-pill">MF</span>
