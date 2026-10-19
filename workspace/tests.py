@@ -334,3 +334,33 @@ class StaffDetailAndScraperTests(TestCase):
         self.assertEqual(out["application_link"], "https://grants.example.org/apply")
         self.assertEqual(out["amount_max"], Decimal("50000"))
         self.assertEqual(str(out["deadline"]), "2026-11-30")
+
+
+class QuickPostTests(TestCase):
+    def test_screenshot_creates_pending_draft_then_publishes(self):
+        import io
+        from unittest import mock
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from .models import PostedOpportunity
+        staff = get_user_model().objects.create_superuser("boss2", "b2@x.com", "pw")
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get("/board/quick-post/").status_code, 200)
+        buf = io.BytesIO(); Image.new("RGB", (10, 10)).save(buf, "PNG")
+        img = SimpleUploadedFile("shot.png", buf.getvalue(), content_type="image/png")
+        data = {"title": "IG Grant", "funder_name": "Fund", "opportunity_type": "grant", "amount_max": "5,000",
+                "currency": "USD", "deadline": "2999-01-01", "application_link": "https://f.org/apply",
+                "short_description": "", "eligibility": "", "amount_min": "", "geographic_focus": "",
+                "sector_focus": "", "tags": ""}
+        with mock.patch("workspace.views.extract_opportunity_from_image", return_value=data):
+            resp = self.client.post("/board/quick-post/", {"images": img})
+        opp = PostedOpportunity.objects.get()
+        self.assertRedirects(resp, f"/board/{opp.pk}/edit/")
+        self.assertEqual(opp.review_status, "pending")
+        self.assertEqual(str(opp.amount_max), "5000.00")
+        self.assertTrue(opp.poster_image)
+        resp = self.client.post(f"/board/{opp.pk}/edit/", {
+            "publish": "1", "title": "IG Grant", "funder_name": "Fund", "opportunity_type": "grant",
+            "status": "open", "currency": "USD"})
+        opp.refresh_from_db()
+        self.assertEqual(opp.review_status, "approved")

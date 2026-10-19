@@ -1,4 +1,5 @@
 import calendar as cal_module
+import datetime
 import csv
 import json
 import logging
@@ -1371,6 +1372,81 @@ def posted_opportunity_extract(request):
     return JsonResponse({"data": data})
 
 
+def _opportunity_values_from_extracted(data):
+    """Turn raw AI strings into safe PostedOpportunity field values."""
+    values = {
+        "title": (data.get("title") or "Untitled opportunity (from screenshot)")[:255],
+        "funder_name": (data.get("funder_name") or "Unknown funder")[:255],
+        "opportunity_type": data.get("opportunity_type") or PostedOpportunity.OpportunityType.OTHER,
+        "short_description": data.get("short_description", ""),
+        "eligibility": data.get("eligibility", ""),
+        "currency": (data.get("currency") or "USD")[:10],
+        "geographic_focus": data.get("geographic_focus", "")[:255],
+        "sector_focus": data.get("sector_focus", "")[:255],
+        "tags": data.get("tags", "")[:255],
+    }
+    link = data.get("application_link", "").strip()
+    if link.startswith(("http://", "https://")) and len(link) <= 200:
+        values["application_link"] = link
+    for field in ("amount_min", "amount_max"):
+        try:
+            if data.get(field):
+                values[field] = Decimal(data[field].replace(",", ""))
+        except ArithmeticError:
+            pass
+    try:
+        if data.get("deadline"):
+            values["deadline"] = datetime.date.fromisoformat(data["deadline"])
+    except ValueError:
+        pass
+    return values
+
+
+@login_required
+def ops_quick_post(request):
+    """Staff: upload one or more screenshots; AI creates a draft for each, ready to review."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can post opportunities.")
+    if request.method == "POST":
+        created, errors = [], []
+        for image in request.FILES.getlist("images"):
+            if image.content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                errors.append(f"{image.name}: not a JPG, PNG, GIF or WebP image.")
+                continue
+            if image.size > 15 * 1024 * 1024:
+                errors.append(f"{image.name}: larger than 15 MB.")
+                continue
+            try:
+                data = extract_opportunity_from_image(image.read(), image.content_type)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{image.name}: could not read it ({exc}).")
+                continue
+            image.seek(0)
+            opp = PostedOpportunity.objects.create(
+                posted_by=request.user,
+                review_status=PostedOpportunity.ReviewStatus.PENDING,
+                status=PostedOpportunity.Status.OPEN,
+                poster_image=image,
+                **_opportunity_values_from_extracted(data),
+            )
+            created.append(opp)
+        for error in errors:
+            messages.error(request, error)
+        if len(created) == 1:
+            messages.success(request, "Details filled in. Check them, then tap Save & publish.")
+            return redirect("posted_opportunity_edit", pk=created[0].pk)
+        if created:
+            messages.success(request, f"{len(created)} drafts created. Open each one to check and publish.")
+            return redirect("ops_quick_post")
+        if not errors:
+            messages.error(request, "Choose at least one image.")
+        return redirect("ops_quick_post")
+    drafts = PostedOpportunity.objects.filter(
+        review_status=PostedOpportunity.ReviewStatus.PENDING, posted_by=request.user
+    )[:20]
+    return render(request, "workspace/ops_quick_post.html", {"drafts": drafts})
+
+
 @login_required
 def posted_opportunity_edit(request, pk):
     if not request.user.is_staff:
@@ -1378,8 +1454,12 @@ def posted_opportunity_edit(request, pk):
     opp = get_object_or_404(PostedOpportunity, pk=pk)
     form = PostedOpportunityForm(request.POST or None, request.FILES or None, instance=opp)
     if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Opportunity updated.")
+        opp = form.save(commit=False)
+        if "publish" in request.POST:
+            opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
+            register_source_from_link(opp.application_link, request.user)
+        opp.save()
+        messages.success(request, "Opportunity published." if "publish" in request.POST else "Opportunity updated.")
         return redirect("posted_opportunity_detail", pk=opp.pk)
     return render(request, "workspace/posted_opportunity_form.html", {
         "form": form, "action": "Edit opportunity", "opp": opp,

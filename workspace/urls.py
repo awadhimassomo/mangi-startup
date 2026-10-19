@@ -58,6 +58,7 @@ urlpatterns = [
     path("exchange-rates/", views.exchange_rate_list_view, name="exchange_rates"),
     path("board/", views.posted_opportunity_list, name="posted_opportunity_list"),
     path("board/post/", views.posted_opportunity_create, name="posted_opportunity_create"),
+    path("board/quick-post/", views.ops_quick_post, name="ops_quick_post"),
     path("board/extract/", views.posted_opportunity_extract, name="posted_opportunity_extract"),
     path("board/<int:pk>/", views.posted_opportunity_detail, name="posted_opportunity_detail"),
     path("board/<int:pk>/add-to-pipeline/", views.posted_opportunity_add_to_pipeline, name="posted_opportunity_add_to_pipeline"),

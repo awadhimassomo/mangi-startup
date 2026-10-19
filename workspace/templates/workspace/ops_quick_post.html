@@ -1,0 +1,50 @@
+{% extends "workspace/ops_base.html" %}
+{% block title %}Quick post — Mangi{% endblock %}
+{% block content %}
+<style>
+.qp-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1.25rem; max-width:560px; }
+.qp-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem; text-align:center;
+    border:2px dashed var(--accent,#C72C41); border-radius:14px; padding:2.25rem 1rem; cursor:pointer; background:#fff7f8; }
+.qp-drop strong { font-size:1.05rem; }
+.qp-drop input { display:none; }
+.qp-submit { width:100%; margin-top:1rem; padding:0.9rem; font-size:1rem; }
+.qp-row { display:flex; justify-content:space-between; gap:0.75rem; padding:0.6rem 0; border-top:1px solid var(--border); font-size:0.88rem; }
+</style>
+
+<div class="qp-card">
+    <h2 style="margin:0 0 0.35rem;">📸 Quick post from a screenshot</h2>
+    <p class="muted small" style="margin:0 0 1rem;">Screenshot an opportunity on Instagram or LinkedIn, upload it here, and AI fills in the details. You check them and tap publish.</p>
+    <form method="post" enctype="multipart/form-data" id="qp-form">
+        {% csrf_token %}
+        <label class="qp-drop" for="qp-input">
+            <span style="font-size:2rem;">⬆️</span>
+            <strong>Tap to choose screenshots</strong>
+            <span class="muted small" id="qp-names">You can pick several at once</span>
+            <input type="file" id="qp-input" name="images" accept="image/*" multiple required>
+        </label>
+        <button type="submit" class="button qp-submit" id="qp-btn">Read with AI</button>
+    </form>
+</div>
+
+{% if drafts %}
+<div class="qp-card">
+    <h3 style="margin:0 0 0.5rem;font-size:1rem;">Your drafts waiting to be published</h3>
+    {% for d in drafts %}
+    <div class="qp-row">
+        <span><strong>{{ d.title }}</strong><br><span class="muted small">{{ d.funder_name }}{% if d.deadline %} · Due {{ d.deadline }}{% endif %}</span></span>
+        <a class="button button-sm" href="{% url 'posted_opportunity_edit' d.pk %}">Review</a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<script>
+document.getElementById("qp-input").addEventListener("change", function () {
+    const n = this.files.length;
+    document.getElementById("qp-names").textContent = n ? n + " image" + (n > 1 ? "s" : "") + " selected" : "You can pick several at once";
+});
+document.getElementById("qp-form").addEventListener("submit", function () {
+    const b = document.getElementById("qp-btn"); b.disabled = true; b.textContent = "Reading… this takes a few seconds";
+});
+</script>
+{% endblock %}

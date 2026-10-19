@@ -57,6 +57,16 @@
         .ops-eyebrow { font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
         .ops-page-title { font-size:1.1rem; font-weight:800; margin:0; }
         .ops-content { padding:1.75rem 2rem; }
+        @media (max-width: 800px) {
+            .ops-shell { flex-direction:column; }
+            .ops-sidebar { width:100%; flex-direction:row; align-items:center; padding:0.5rem; overflow-x:auto; border-right:none; border-bottom:1px solid var(--border); }
+            .ops-brand { padding:0 0.5rem; border-bottom:none; margin:0; }
+            .ops-brand div:last-child, .ops-footer, .ops-nav .nav-section { display:none; }
+            .ops-nav { flex-direction:row; padding:0; gap:0.25rem; flex:none; }
+            .ops-nav a, .ops-nav button { white-space:nowrap; }
+            .ops-topbar { padding:0.6rem 1rem; }
+            .ops-content { padding:1rem; }
+        }
         .ops-badge-super {
             font-size:0.7rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
             background:linear-gradient(135deg,#7c0a02,#dc2626); color:#fff;
@@ -82,6 +92,10 @@
             <a href="{% url 'ops_dashboard' %}" class="{% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 Dashboard
+            </a>
+            <a href="{% url 'ops_quick_post' %}" class="{% if request.resolver_match.url_name == 'ops_quick_post' %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                Quick Post (Screenshot)
             </a>
             <a href="{% url 'posted_opportunity_create' %}" class="{% if request.resolver_match.url_name == 'posted_opportunity_create' %}active{% endif %}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

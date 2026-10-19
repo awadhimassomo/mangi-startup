@@ -224,7 +224,12 @@
         </div>
 
         <div class="form-actions">
+            {% if opp and opp.review_status != "approved" %}
+            <button type="submit" name="publish" value="1" class="button">✅ Save &amp; publish</button>
+            <button type="submit" class="button button-secondary">Save as draft</button>
+            {% else %}
             <button type="submit" class="button">💾 Save opportunity</button>
+            {% endif %}
             <a href="{% url 'ops_dashboard' %}" class="button button-secondary">Cancel</a>
         </div>
     </form>

@@ -254,9 +254,26 @@ EXTRACT_FIELDS = (
 )
 
 
+def _shrink_for_ai(image_bytes, media_type):
+    """Downscale large screenshots to a JPEG the API accepts; fall back to the original."""
+    try:
+        import io
+
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(image_bytes))
+        img.thumbnail((1800, 1800))
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, "JPEG", quality=85)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:  # noqa: BLE001
+        return image_bytes, media_type
+
+
 def extract_opportunity_from_image(image_bytes, media_type):
     """Send a poster image to Claude and return a dict of PostedOpportunity form values."""
     import base64
+    image_bytes, media_type = _shrink_for_ai(image_bytes, media_type)
     import json
     import os
     import re
