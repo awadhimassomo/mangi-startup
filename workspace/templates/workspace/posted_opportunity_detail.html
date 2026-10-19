@@ -1,4 +1,4 @@
-{% extends "workspace/base.html" %}
+{% extends base_template|default:"workspace/base.html" %}
 {% block title %}{{ opp.title }}{% endblock %}
 {% block page_title %}{{ opp.title }}{% endblock %}
 {% block content %}
@@ -24,7 +24,7 @@
         {% if is_staff %}
             <a href="{% url 'posted_opportunity_edit' opp.pk %}" class="button button-secondary button-sm">Edit</a>
         {% endif %}
-        <a href="{% url 'posted_opportunity_list' %}" class="button button-secondary button-sm">← Board</a>
+        {% if admin_mode %}<a href="{% url 'ops_dashboard' %}" class="button button-secondary button-sm">← Back to manage</a>{% else %}<a href="{% url 'posted_opportunity_list' %}" class="button button-secondary button-sm">← Board</a>{% endif %}
     </div>
 </div>
 

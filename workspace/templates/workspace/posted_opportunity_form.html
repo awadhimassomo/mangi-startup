@@ -37,6 +37,7 @@
         <div class="form-section" style="background:#fef3c7;border-color:#f59e0b;">Found on <strong>{{ discovery.source }}</strong> — check the details, then save to post it.</div>
         {% endif %}
 
+        <style>@keyframes qp-spin { to { transform:rotate(360deg); } }</style>
         {# ── AI autofill ── #}
         {% if not opp %}
         <div class="form-section" style="border-color:var(--accent,#C72C41);">
@@ -51,7 +52,8 @@
             const file = document.getElementById("ai-image").files[0];
             const status = document.getElementById("ai-status");
             if (!file) { status.textContent = "Choose an image first."; return; }
-            status.textContent = "Reading picture…"; this.disabled = true;
+            status.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #f1d5da;border-top-color:#C72C41;border-radius:50%;vertical-align:-2px;margin-right:6px;animation:qp-spin .9s linear infinite"></span>AI is reading the picture… (5–20 seconds)';
+            this.disabled = true;
             const fd = new FormData(); fd.append("image", file);
             fd.append("csrfmiddlewaretoken", document.querySelector("[name=csrfmiddlewaretoken]").value);
             try {
@@ -230,7 +232,7 @@
             {% else %}
             <button type="submit" class="button">💾 Save opportunity</button>
             {% endif %}
-            <a href="{% url 'ops_dashboard' %}" class="button button-secondary">Cancel</a>
+            <a href="{% if request.GET.from == 'quick' %}{% url 'ops_quick_post' %}{% else %}{% url 'ops_dashboard' %}{% endif %}" class="button button-secondary">Cancel</a>
         </div>
     </form>
 </div>

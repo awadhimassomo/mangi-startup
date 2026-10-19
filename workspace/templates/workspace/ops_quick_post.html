@@ -2,6 +2,10 @@
 {% block title %}Quick post — Mangi{% endblock %}
 {% block content %}
 <style>
+.qp-loading { display:none; position:fixed; inset:0; z-index:200; background:rgba(255,255,255,.92); flex-direction:column; align-items:center; justify-content:center; gap:1rem; text-align:center; padding:1rem; }
+.qp-loading.show { display:flex; }
+.qp-spinner { width:56px; height:56px; border:5px solid #f1d5da; border-top-color:var(--accent,#C72C41); border-radius:50%; animation:qp-spin 0.9s linear infinite; }
+@keyframes qp-spin { to { transform:rotate(360deg); } }
 .qp-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1.25rem; max-width:560px; }
 .qp-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem; text-align:center;
     border:2px dashed var(--accent,#C72C41); border-radius:14px; padding:2.25rem 1rem; cursor:pointer; background:#fff7f8; }
@@ -10,6 +14,12 @@
 .qp-submit { width:100%; margin-top:1rem; padding:0.9rem; font-size:1rem; }
 .qp-row { display:flex; justify-content:space-between; gap:0.75rem; padding:0.6rem 0; border-top:1px solid var(--border); font-size:0.88rem; }
 </style>
+
+<div class="qp-loading" id="qp-loading">
+    <div class="qp-spinner"></div>
+    <strong>AI is reading your screenshot…</strong>
+    <span class="muted small">This takes 5–20 seconds. Please don't close this page.</span>
+</div>
 
 <div class="qp-card">
     <h2 style="margin:0 0 0.35rem;">📸 Quick post from a screenshot</h2>
@@ -32,7 +42,7 @@
     {% for d in drafts %}
     <div class="qp-row">
         <span><strong>{{ d.title }}</strong><br><span class="muted small">{{ d.funder_name }}{% if d.deadline %} · Due {{ d.deadline }}{% endif %}</span></span>
-        <a class="button button-sm" href="{% url 'posted_opportunity_edit' d.pk %}">Review</a>
+        <a class="button button-sm" href="{% url 'posted_opportunity_edit' d.pk %}?from=quick">Review</a>
     </div>
     {% endfor %}
 </div>
@@ -44,7 +54,12 @@ document.getElementById("qp-input").addEventListener("change", function () {
     document.getElementById("qp-names").textContent = n ? n + " image" + (n > 1 ? "s" : "") + " selected" : "You can pick several at once";
 });
 document.getElementById("qp-form").addEventListener("submit", function () {
-    const b = document.getElementById("qp-btn"); b.disabled = true; b.textContent = "Reading… this takes a few seconds";
+    const b = document.getElementById("qp-btn"); b.disabled = true; b.textContent = "Reading…";
+    document.getElementById("qp-loading").classList.add("show");
+});
+window.addEventListener("pageshow", function () {
+    document.getElementById("qp-loading").classList.remove("show");
+    const b = document.getElementById("qp-btn"); b.disabled = false; b.textContent = "Read with AI";
 });
 </script>
 {% endblock %}

@@ -355,7 +355,7 @@ class QuickPostTests(TestCase):
         with mock.patch("workspace.views.extract_opportunity_from_image", return_value=data):
             resp = self.client.post("/board/quick-post/", {"images": img})
         opp = PostedOpportunity.objects.get()
-        self.assertRedirects(resp, f"/board/{opp.pk}/edit/")
+        self.assertRedirects(resp, f"/board/{opp.pk}/edit/?from=quick")
         self.assertEqual(opp.review_status, "pending")
         self.assertEqual(str(opp.amount_max), "5000.00")
         self.assertTrue(opp.poster_image)
@@ -364,3 +364,18 @@ class QuickPostTests(TestCase):
             "status": "open", "currency": "USD"})
         opp.refresh_from_db()
         self.assertEqual(opp.review_status, "approved")
+
+
+class QuickFlowRedirectTests(TestCase):
+    def test_publish_from_quick_returns_to_upload_page(self):
+        from .models import PostedOpportunity
+        staff = get_user_model().objects.create_superuser("boss3", "b3@x.com", "pw")
+        self.client.force_login(staff)
+        opp = PostedOpportunity.objects.create(title="A", funder_name="F", review_status="pending")
+        data = {"publish": "1", "title": "A", "funder_name": "F", "opportunity_type": "grant",
+                "status": "open", "currency": "USD"}
+        resp = self.client.post(f"/board/{opp.pk}/edit/?from=quick", data)
+        self.assertRedirects(resp, "/board/quick-post/")
+        resp = self.client.post(f"/board/{opp.pk}/edit/", data)
+        self.assertRedirects(resp, "/ops/")
+        self.assertContains(self.client.get(f"/board/{opp.pk}/"), "Back to manage")

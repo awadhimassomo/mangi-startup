@@ -13,6 +13,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.db.models import Count, Sum
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -1284,7 +1285,10 @@ def posted_opportunity_detail(request, pk):
         )
     pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first() if startup else None
     fit_assessment = assess_posted_opportunity_fit(startup, opp) if startup else None
+    admin_mode = request.user.is_staff and not startup
     return render(request, "workspace/posted_opportunity_detail.html", {
+        "base_template": "workspace/ops_base.html" if admin_mode else "workspace/base.html",
+        "admin_mode": admin_mode,
         "opp": opp,
         "membership": membership,
         "is_staff": request.user.is_staff,
@@ -1434,7 +1438,7 @@ def ops_quick_post(request):
             messages.error(request, error)
         if len(created) == 1:
             messages.success(request, "Details filled in. Check them, then tap Save & publish.")
-            return redirect("posted_opportunity_edit", pk=created[0].pk)
+            return redirect(reverse("posted_opportunity_edit", args=[created[0].pk]) + "?from=quick")
         if created:
             messages.success(request, f"{len(created)} drafts created. Open each one to check and publish.")
             return redirect("ops_quick_post")
@@ -1460,6 +1464,10 @@ def posted_opportunity_edit(request, pk):
             register_source_from_link(opp.application_link, request.user)
         opp.save()
         messages.success(request, "Opportunity published." if "publish" in request.POST else "Opportunity updated.")
+        if request.GET.get("from") == "quick":
+            return redirect("ops_quick_post")  # keep going: add the next screenshot
+        if not get_current_startup(request.user):
+            return redirect("ops_dashboard")  # admins have no workspace; keep them in the admin area
         return redirect("posted_opportunity_detail", pk=opp.pk)
     return render(request, "workspace/posted_opportunity_form.html", {
         "form": form, "action": "Edit opportunity", "opp": opp,
