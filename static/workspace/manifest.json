@@ -1,8 +1,9 @@
 {
   "name": "Mangi FundOS",
   "short_name": "FundOS",
-  "description": "Fundraising and grant management workspace",
-  "start_url": "/",
+  "description": "Fundraising and grant management workspace for startups and founders",
+  "start_url": "/dashboard/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#C72C41",
@@ -12,13 +13,25 @@
       "src": "/static/workspace/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/static/workspace/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/workspace/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/workspace/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -30,8 +43,24 @@
       "icons": [{"src": "/static/workspace/icon-192.png", "sizes": "192x192"}]
     },
     {
+      "name": "Pipeline",
+      "short_name": "Pipeline",
+      "description": "View active funding opportunities",
+      "url": "/opportunities/",
+      "icons": [{"src": "/static/workspace/icon-192.png", "sizes": "192x192"}]
+    },
+    {
       "name": "Grants",
+      "short_name": "Grants",
+      "description": "View and manage grants",
       "url": "/grants/",
+      "icons": [{"src": "/static/workspace/icon-192.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "Opportunity Board",
+      "short_name": "Board",
+      "description": "Find open grants & competitions",
+      "url": "/board/",
       "icons": [{"src": "/static/workspace/icon-192.png", "sizes": "192x192"}]
     }
   ]

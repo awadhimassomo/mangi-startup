@@ -46,6 +46,16 @@
             <p class="kpi-sub">Visible to startups</p>
         </div>
     </div>
+    <div class="kpi-card" style="background:var(--surface);border:1px solid var(--border);">
+        <div class="kpi-icon" style="background:rgba(245,158,11,0.12);color:#b45309;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="kpi-body">
+            <p class="kpi-label">Pending review</p>
+            <p class="kpi-value">{{ pending_review_count }}</p>
+            <p class="kpi-sub">Private until approved</p>
+        </div>
+    </div>
     <div class="kpi-card kpi-orange">
         <div class="kpi-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -123,6 +133,7 @@
     </div>
 
     {# Recent Runs #}
+    {# Recent Runs #}
     <div class="panel" style="padding:1.5rem;">
         <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;">Recent Agent Runs</h3>
         {% if recent_runs %}
@@ -146,6 +157,40 @@
     </div>
 </div>
 
+{# ── Web Opportunity Scraper Agent Panel ── #}
+<div class="panel" style="margin-bottom: 1.75rem; padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #fbfbfc 100%); border-left: 4px solid var(--primary);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+        <div style="max-width: 650px;">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+                <span style="background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:0.75rem; padding:0.2rem 0.6rem; border-radius:999px;">AI Scraper</span>
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700;">Opportunity Discovery & Ingestion Agent</h3>
+            </div>
+            <p class="muted small" style="margin:0 0 0.75rem;">
+                Scrapes curated funding feeds, extracts opportunity details, and saves new discoveries as private drafts. Review each item below and approve it before startups can see it or matching notifications are triggered.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+            <form method="post" action="{% url 'ops_run_scraper' %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="button button-primary" style="display:inline-flex; align-items:center; gap:0.4rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    Run Live Scraper Agent
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {# Direct URL Scraper Form #}
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line);">
+        <form method="post" action="{% url 'ops_run_scraper' %}" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            {% csrf_token %}
+            <input type="url" name="custom_url" placeholder="Paste a specific opportunity URL or post to ingest directly (e.g. https://...)" style="flex:1; min-width:280px; padding:0.5rem 0.85rem; border-radius:var(--radius-sm); border:1px solid var(--line); font-size:0.88rem;">
+            <button type="submit" class="button button-secondary" style="white-space:nowrap;">Ingest Single URL</button>
+        </form>
+    </div>
+</div>
+
+
 {# ── Opportunity Management Table ── #}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;flex-wrap:wrap;gap:0.75rem;">
     <h3 style="margin:0;font-size:1rem;font-weight:700;">Posted Opportunities</h3>
@@ -163,8 +208,14 @@
                 <option value="{{ v }}" {% if active_status == v %}selected{% endif %}>{{ l }}</option>
             {% endfor %}
         </select>
+        <select name="review">
+            <option value="">All review states</option>
+            {% for v, l in review_status_choices %}
+                <option value="{{ v }}" {% if active_review_status == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
         <button type="submit" class="button button-secondary">Filter</button>
-        {% if search or active_type or active_status %}
+        {% if search or active_type or active_status or active_review_status %}
             <a href="{% url 'ops_dashboard' %}" class="button button-secondary">Clear</a>
         {% endif %}
     </form>
@@ -178,6 +229,7 @@
                 <th>Title</th>
                 <th>Funder</th>
                 <th>Type</th>
+                <th>Admin review</th>
                 <th>Status</th>
                 <th>Amount</th>
                 <th>Deadline</th>
@@ -197,6 +249,16 @@
                 </td>
                 <td><span style="font-size:0.85rem;">{{ opp.funder_name }}</span></td>
                 <td><span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span></td>
+                <td>
+                    <form method="post" action="{% url 'ops_opportunity_toggle_status' opp.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <select name="review_status" aria-label="Review status for {{ opp.title }}" onchange="this.form.submit()" style="font-size:0.78rem;padding:0.2rem 0.4rem;border-radius:5px;border:1px solid var(--border);background:var(--bg);cursor:pointer;">
+                            {% for v, l in review_status_choices %}
+                            <option value="{{ v }}" {% if opp.review_status == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
                 <td>
                     <form method="post" action="{% url 'ops_opportunity_toggle_status' opp.pk %}" style="display:inline;">
                         {% csrf_token %}

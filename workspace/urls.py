@@ -50,6 +50,7 @@ urlpatterns = [
     path("grants/<int:grant_pk>/advances/add/", views.cash_advance_add_view, name="cash_advance_add"),
     path("advances/<int:pk>/reconcile/", views.cash_advance_reconcile_view, name="cash_advance_reconcile"),
     path("audit/", views.audit_log_view, name="audit_log"),
+    path("settings/", views.settings_view, name="settings"),
     path("notifications/", views.notification_list_view, name="notifications"),
     path("notifications/mark-read/", views.notification_mark_read_view, name="notifications_mark_all_read"),
     path("notifications/<int:pk>/read/", views.notification_mark_read_view, name="notification_read"),
@@ -67,11 +68,19 @@ urlpatterns = [
     # Superadmin Ops Dashboard
     path("ops/", views.ops_dashboard, name="ops_dashboard"),
     path("ops/sources/", views.ops_sources, name="ops_sources"),
+    path("ops/sources/scan-all/", views.ops_scan_all, name="ops_scan_all"),
     path("ops/sources/add/", views.ops_source_add, name="ops_source_add"),
     path("ops/sources/<int:pk>/scan/", views.ops_source_action, {"action": "scan"}, name="ops_source_scan"),
     path("ops/sources/<int:pk>/toggle/", views.ops_source_action, {"action": "toggle"}, name="ops_source_toggle"),
     path("ops/sources/<int:pk>/delete/", views.ops_source_action, {"action": "delete"}, name="ops_source_delete"),
     path("ops/discoveries/<int:pk>/dismiss/", views.ops_discovery_dismiss, name="ops_discovery_dismiss"),
     path("ops/run-agent/", views.ops_run_agent, name="ops_run_agent"),
+    path("ops/run-scraper/", views.ops_run_scraper, name="ops_run_scraper"),
     path("ops/opportunities/<int:pk>/toggle-status/", views.ops_opportunity_toggle_status, name="ops_opportunity_toggle_status"),
+    # PWA & Web Push Notifications
+    path("sw.js", views.pwa_service_worker_view, name="pwa_service_worker"),
+    path("api/pwa/vapid-public-key/", views.pwa_vapid_public_key_view, name="pwa_vapid_public_key"),
+    path("api/pwa/subscribe/", views.pwa_subscribe_view, name="pwa_subscribe"),
+    path("api/pwa/unsubscribe/", views.pwa_unsubscribe_view, name="pwa_unsubscribe"),
+    path("api/pwa/test-notification/", views.pwa_test_push_view, name="pwa_test_notification"),
 ]

@@ -398,7 +398,7 @@ class QuickExpenseForm(forms.ModelForm):
 class PostedOpportunityForm(forms.ModelForm):
     class Meta:
         model = PostedOpportunity
-        exclude = ("posted_by", "created_at", "updated_at")
+        exclude = ("posted_by", "created_at", "updated_at", "review_status")
         widgets = {
             "short_description": forms.Textarea(attrs={"rows": 4, "placeholder": "Brief overview of the opportunity…"}),
             "eligibility": forms.Textarea(attrs={"rows": 3, "placeholder": "Who can apply? Sector, stage, geography…"}),

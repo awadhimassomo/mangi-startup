@@ -973,6 +973,11 @@ class Notification(models.Model):
 
 
 class PostedOpportunity(models.Model):
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
     class Status(models.TextChoices):
         OPEN = "open", "Open"
         CLOSED = "closed", "Closed"
@@ -992,6 +997,12 @@ class PostedOpportunity(models.Model):
     funder_name = models.CharField(max_length=255)
     opportunity_type = models.CharField(max_length=30, choices=OpportunityType.choices, default=OpportunityType.GRANT)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    review_status = models.CharField(
+        max_length=20,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.APPROVED,
+        help_text="Only approved opportunities are shown to startup accounts.",
+    )
     short_description = models.TextField(blank=True)
     eligibility = models.TextField(blank=True)
     amount_min = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
@@ -1116,3 +1127,22 @@ class DiscoveredOpportunity(models.Model):
     @property
     def title(self):
         return self.data.get("title", "")
+
+
+class PushSubscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    endpoint = models.TextField(unique=True)
+    p256dh = models.TextField()
+    auth = models.TextField()
+    user_agent = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"PushSubscription for {self.user.username} ({self.created_at:%Y-%m-%d})"
+

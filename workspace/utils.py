@@ -280,5 +280,7 @@ def build_dashboard_metrics(startup):
             "values": [item["percent"] for item in readiness["categories"]],
         },
         "readiness": readiness,
-        "posted_opportunities": PostedOpportunity.objects.filter(status="open")[:4],
+        "posted_opportunities": PostedOpportunity.objects.filter(
+            status="open", review_status=PostedOpportunity.ReviewStatus.APPROVED
+        )[:4],
     }

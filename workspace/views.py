@@ -1,5 +1,7 @@
 import calendar as cal_module
 import csv
+import json
+import logging
 from decimal import Decimal
 from urllib.parse import urlparse
 
@@ -11,6 +13,7 @@ from django.db.models import Count, Sum
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .source_watch import register_source_from_link, scan_source
 from .ai_pipeline import extract_opportunity_from_image, assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
@@ -74,6 +77,8 @@ from .utils import (
     get_current_startup,
     log_activity,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def home_redirect(request):
@@ -1151,6 +1156,17 @@ def notification_list_view(request):
 
 
 @login_required
+def settings_view(request):
+    startup, membership, redirect_response = require_startup_access(request)
+    if redirect_response:
+        return redirect_response
+    return render(request, "workspace/settings.html", {
+        "membership": membership,
+        "is_ops_admin": request.user.is_superuser,
+    })
+
+
+@login_required
 def notification_mark_read_view(request, pk=None):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
@@ -1218,7 +1234,9 @@ def posted_opportunity_list(request):
     if redirect_response:
         return redirect_response
     PostedOpportunity.purge_expired()
-    qs = PostedOpportunity.objects.all()
+    qs = PostedOpportunity.objects.filter(
+        review_status=PostedOpportunity.ReviewStatus.APPROVED
+    )
     opp_type = request.GET.get("type", "")
     status = request.GET.get("status", "")
     search = request.GET.get("q", "")
@@ -1252,7 +1270,11 @@ def posted_opportunity_detail(request, pk):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
-    opp = get_object_or_404(PostedOpportunity, pk=pk)
+    opp = get_object_or_404(
+        PostedOpportunity,
+        pk=pk,
+        review_status=PostedOpportunity.ReviewStatus.APPROVED,
+    )
     pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first()
     fit_assessment = assess_posted_opportunity_fit(startup, opp)
     return render(request, "workspace/posted_opportunity_detail.html", {
@@ -1272,7 +1294,12 @@ def posted_opportunity_add_to_pipeline(request, pk):
     guard = check_write_permission(membership)
     if guard:
         return guard
-    opp = get_object_or_404(PostedOpportunity, pk=pk, status=PostedOpportunity.Status.OPEN)
+    opp = get_object_or_404(
+        PostedOpportunity,
+        pk=pk,
+        status=PostedOpportunity.Status.OPEN,
+        review_status=PostedOpportunity.ReviewStatus.APPROVED,
+    )
     opportunity, created, assessment = create_pipeline_from_posted_opportunity(startup, request.user, opp)
     if created:
         log_activity(
@@ -1306,6 +1333,7 @@ def posted_opportunity_create(request):
     if request.method == "POST" and form.is_valid():
         opp = form.save(commit=False)
         opp.posted_by = request.user
+        opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
         opp.save()
         register_source_from_link(opp.application_link, request.user)
         if discovery:
@@ -1378,7 +1406,9 @@ def posted_opportunity_manage(request):
         "active_status": status,
         "search": search,
         "total": PostedOpportunity.objects.count(),
-        "open_count": PostedOpportunity.objects.filter(status="open").count(),
+        "open_count": PostedOpportunity.objects.filter(
+            status="open", review_status=PostedOpportunity.ReviewStatus.APPROVED
+        ).count(),
         "featured_count": PostedOpportunity.objects.filter(is_featured=True).count(),
     })
 
@@ -1406,11 +1436,14 @@ def ops_dashboard(request):
     qs = PostedOpportunity.objects.all()
     opp_type = request.GET.get("type", "")
     status = request.GET.get("status", "")
+    review_status = request.GET.get("review", "")
     search = request.GET.get("q", "")
     if opp_type:
         qs = qs.filter(opportunity_type=opp_type)
     if status:
         qs = qs.filter(status=status)
+    if review_status in PostedOpportunity.ReviewStatus.values:
+        qs = qs.filter(review_status=review_status)
     if search:
         qs = qs.filter(title__icontains=search) | qs.filter(funder_name__icontains=search)
 
@@ -1426,11 +1459,18 @@ def ops_dashboard(request):
         "opportunities": qs,
         "type_choices": PostedOpportunity.OpportunityType.choices,
         "status_choices": PostedOpportunity.Status.choices,
+        "review_status_choices": PostedOpportunity.ReviewStatus.choices,
         "active_type": opp_type,
         "active_status": status,
+        "active_review_status": review_status,
         "search": search,
         "total": PostedOpportunity.objects.count(),
-        "open_count": PostedOpportunity.objects.filter(status="open").count(),
+        "open_count": PostedOpportunity.objects.filter(
+            status="open", review_status=PostedOpportunity.ReviewStatus.APPROVED
+        ).count(),
+        "pending_review_count": PostedOpportunity.objects.filter(
+            review_status=PostedOpportunity.ReviewStatus.PENDING
+        ).count(),
         "closed_count": PostedOpportunity.objects.filter(status="closed").count(),
         "featured_count": PostedOpportunity.objects.filter(is_featured=True).count(),
         "total_startups": total_startups,
@@ -1453,6 +1493,22 @@ def ops_sources(request):
             status=DiscoveredOpportunity.Status.PENDING
         ).select_related("source"),
     })
+
+
+@login_required
+def ops_scan_all(request):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can scan sites.")
+    if request.method == "POST":
+        total, failed = 0, 0
+        for source in OpportunitySource.objects.filter(is_active=True):
+            total += len(scan_source(source))
+            failed += bool(source.last_error)
+        msg = f"Scan finished: {total} new opportunities found."
+        if failed:
+            msg += f" {failed} site(s) had errors, see Watched Sites."
+        messages.success(request, msg)
+    return redirect("ops_sources")
 
 
 @login_required
@@ -1523,8 +1579,153 @@ def ops_opportunity_toggle_status(request, pk):
     if request.method != "POST":
         return redirect("ops_dashboard")
     opp = get_object_or_404(PostedOpportunity, pk=pk)
-    new_status = request.POST.get("status", opp.status)
-    opp.status = new_status
-    opp.save(update_fields=["status", "updated_at"])
-    messages.success(request, f"'{opp.title}' status updated to {opp.get_status_display()}.")
+    review_status = request.POST.get("review_status")
+    new_status = request.POST.get("status")
+    if review_status:
+        if review_status not in PostedOpportunity.ReviewStatus.values:
+            return HttpResponseForbidden("Invalid opportunity review status.")
+        opp.review_status = review_status
+        opp.save(update_fields=["review_status", "updated_at"])
+        messages.success(request, f"'{opp.title}' review status changed to {opp.get_review_status_display()}.")
+        if review_status == PostedOpportunity.ReviewStatus.APPROVED and opp.status == PostedOpportunity.Status.OPEN:
+            run_matching_agent(
+                trigger="manual",
+                triggered_by=request.user,
+                target_opportunity=opp,
+            )
+    elif new_status:
+        if new_status not in PostedOpportunity.Status.values:
+            return HttpResponseForbidden("Invalid opportunity status.")
+        opp.status = new_status
+        opp.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"'{opp.title}' status updated to {opp.get_status_display()}.")
     return redirect("ops_dashboard")
+
+
+@login_required
+def ops_run_scraper(request):
+    """Triggers the automated opportunity web scraper agent."""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Superadmin access only.")
+    if request.method != "POST":
+        return redirect("ops_dashboard")
+
+    from .scraper_agent import run_opportunity_scraper
+
+    custom_url = request.POST.get("custom_url", "").strip()
+    custom_urls = [custom_url] if custom_url else None
+
+    stats = run_opportunity_scraper(acting_user=request.user, custom_urls=custom_urls)
+    
+    if stats["created"] > 0:
+        messages.success(
+            request,
+            f"Scraper Agent finished: Ingested {stats['created']} new opportunities "
+            f"({stats['skipped_duplicates']} duplicates skipped). New discoveries are pending admin review."
+        )
+    else:
+        messages.info(
+            request,
+            f"Scraper Agent finished: {stats['scraped']} items analyzed. No new opportunities found "
+            f"({stats['skipped_duplicates']} already exist in database)."
+        )
+
+    return redirect("ops_dashboard")
+
+
+
+# ── PWA & Web Push Endpoints ──────────────────────────────────────────────────
+
+def pwa_service_worker_view(request):
+    """Serve the service worker from the origin root so it can control the app."""
+    from django.conf import settings
+
+    worker_path = settings.BASE_DIR / "static" / "workspace" / "sw.js"
+    response = HttpResponse(worker_path.read_text(encoding="utf-8"), content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
+
+
+def pwa_vapid_public_key_view(request):
+    """Returns the public VAPID key; it is safe to expose to unauthenticated clients."""
+    try:
+        from .push_service import get_vapid_public_key
+
+        public_key = get_vapid_public_key()
+        return JsonResponse({"publicKey": public_key})
+    except Exception as e:
+        logger.exception("Could not load VAPID public key")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def pwa_subscribe_view(request):
+    """Saves a browser push subscription for the logged-in user."""
+    from .models import PushSubscription
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        endpoint = data.get("endpoint")
+        keys = data.get("keys", {})
+        p256dh = keys.get("p256dh")
+        auth = keys.get("auth")
+        user_agent = request.META.get("HTTP_USER_AGENT", "")[:500]
+
+        if not endpoint or not p256dh or not auth:
+            return JsonResponse({"error": "Missing subscription parameters"}, status=400)
+
+        PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                "user": request.user,
+                "p256dh": p256dh,
+                "auth": auth,
+                "user_agent": user_agent,
+            },
+        )
+        return JsonResponse({"status": "subscribed"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def pwa_unsubscribe_view(request):
+    """Removes a browser push subscription."""
+    from .models import PushSubscription
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        endpoint = data.get("endpoint")
+        if endpoint:
+            PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+        return JsonResponse({"status": "unsubscribed"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def pwa_test_push_view(request):
+    """Allows only operations admins to trigger a test push notification."""
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Only operations admins can send test push notifications."},
+            status=403,
+        )
+
+    from .push_service import send_push_to_user
+    sent_count = send_push_to_user(
+        user=request.user,
+        title="FundOS Mobile Notifications Active!",
+        body="You will now receive milestone, budget, and funding updates directly on your device.",
+        link="/notifications/",
+        tag="fundos-test",
+    )
+    if sent_count > 0:
+        return JsonResponse({"status": "success", "sent": sent_count})
+    return JsonResponse(
+        {"status": "no_active_subscriptions", "message": "No active device subscriptions found."},
+        status=400,
+    )
+

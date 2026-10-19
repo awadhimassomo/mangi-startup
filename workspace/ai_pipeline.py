@@ -173,9 +173,16 @@ def run_matching_agent(trigger="manual", triggered_by=None, target_opportunity=N
         startups = Startup.objects.prefetch_related("memberships").all()
 
         if target_opportunity:
-            open_opps = PostedOpportunity.objects.filter(pk=target_opportunity.pk, status=PostedOpportunity.Status.OPEN)
+            open_opps = PostedOpportunity.objects.filter(
+                pk=target_opportunity.pk,
+                status=PostedOpportunity.Status.OPEN,
+                review_status=PostedOpportunity.ReviewStatus.APPROVED,
+            )
         else:
-            open_opps = PostedOpportunity.objects.filter(status=PostedOpportunity.Status.OPEN)
+            open_opps = PostedOpportunity.objects.filter(
+                status=PostedOpportunity.Status.OPEN,
+                review_status=PostedOpportunity.ReviewStatus.APPROVED,
+            )
 
         pipelines_created = 0
         startups_processed = 0

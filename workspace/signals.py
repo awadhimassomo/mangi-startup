@@ -17,7 +17,26 @@ def auto_match_on_new_opportunity(sender, instance, created, **kwargs):
     """When a new open opportunity is posted, run the matching agent for it."""
     if not created:
         return
-    if instance.status != "open":
+    if instance.status != "open" or instance.review_status != instance.ReviewStatus.APPROVED:
         return
     from .ai_pipeline import run_matching_agent
     run_matching_agent(trigger="signal", triggered_by=instance.posted_by, target_opportunity=instance)
+
+
+@receiver(post_save, sender="workspace.Notification")
+def dispatch_web_push_on_notification(sender, instance, created, **kwargs):
+    """When a new in-app notification is created, dispatch a Web Push notification to user's mobile/browser."""
+    if not created:
+        return
+    try:
+        from .push_service import send_push_to_user
+        send_push_to_user(
+            user=instance.user,
+            title=instance.title,
+            body=instance.body or "You have a new update in Mangi FundOS.",
+            link=instance.link or "/notifications/",
+            tag=f"fundos-notif-{instance.pk}",
+        )
+    except Exception:
+        pass
+
