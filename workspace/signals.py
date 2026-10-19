@@ -38,5 +38,6 @@ def dispatch_web_push_on_notification(sender, instance, created, **kwargs):
             tag=f"fundos-notif-{instance.pk}",
         )
     except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).exception("Web push dispatch failed for notification %s", instance.pk)
 

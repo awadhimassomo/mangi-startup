@@ -408,6 +408,39 @@
             return await this.readJsonResponse(res, "Test push request");
         }
     };
+
+    // ── Ask people once to turn on phone notifications ───────────────────────
+    (async function promptForPush() {
+        try {
+            if (!window.FundOSPush || !await window.FundOSPush.isSupported()) return;
+            if (Notification.permission !== 'default') return;
+            const until = parseInt(localStorage.getItem('fundos_push_prompt_until') || '0', 10);
+            if (Date.now() < until) return;
+            if (await window.FundOSPush.getSubscription()) return;
+
+            const bar = document.createElement('div');
+            bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#fff;border:1px solid #C72C41;border-radius:12px;padding:0.85rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;font-size:0.9rem;';
+            bar.innerHTML = '<span style="flex:1;min-width:200px;">🔔 Get alerts on your phone for new opportunities and deadlines.</span>' +
+                '<button type="button" class="button button-sm" id="push-prompt-yes">Turn on</button>' +
+                '<button type="button" class="button button-secondary button-sm" id="push-prompt-no">Not now</button>';
+            document.body.appendChild(bar);
+            const hide = function (days) {
+                try { localStorage.setItem('fundos_push_prompt_until', String(Date.now() + days * 86400000)); } catch (e) {}
+                bar.remove();
+            };
+            document.getElementById('push-prompt-no').addEventListener('click', function () { hide(3); });
+            document.getElementById('push-prompt-yes').addEventListener('click', async function () {
+                try {
+                    await window.FundOSPush.subscribe();
+                    bar.innerHTML = '<span>✅ Phone notifications are on.</span>';
+                    setTimeout(function () { bar.remove(); }, 2500);
+                } catch (err) {
+                    alert('Could not turn on notifications: ' + err.message);
+                    hide(1);
+                }
+            });
+        } catch (e) { /* never block the page */ }
+    })();
 </script>
 </body>
 </html>
