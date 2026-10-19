@@ -952,6 +952,11 @@ class Notification(models.Model):
 
 
 class PostedOpportunity(models.Model):
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
     class Status(models.TextChoices):
         OPEN = "open", "Open"
         CLOSED = "closed", "Closed"
@@ -971,6 +976,12 @@ class PostedOpportunity(models.Model):
     funder_name = models.CharField(max_length=255)
     opportunity_type = models.CharField(max_length=30, choices=OpportunityType.choices, default=OpportunityType.GRANT)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    review_status = models.CharField(
+        max_length=20,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.APPROVED,
+        help_text="Only approved opportunities are shown to startup accounts.",
+    )
     short_description = models.TextField(blank=True)
     eligibility = models.TextField(blank=True)
     amount_min = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)

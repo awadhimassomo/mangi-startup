@@ -1,6 +1,7 @@
 import calendar as cal_module
 import csv
 import json
+import logging
 from decimal import Decimal
 
 from django.contrib import messages
@@ -72,6 +73,8 @@ from .utils import (
     get_current_startup,
     log_activity,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def home_redirect(request):
@@ -1214,7 +1217,9 @@ def posted_opportunity_list(request):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
-    qs = PostedOpportunity.objects.all()
+    qs = PostedOpportunity.objects.filter(
+        review_status=PostedOpportunity.ReviewStatus.APPROVED
+    )
     opp_type = request.GET.get("type", "")
     status = request.GET.get("status", "")
     search = request.GET.get("q", "")
@@ -1246,7 +1251,11 @@ def posted_opportunity_detail(request, pk):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
-    opp = get_object_or_404(PostedOpportunity, pk=pk)
+    opp = get_object_or_404(
+        PostedOpportunity,
+        pk=pk,
+        review_status=PostedOpportunity.ReviewStatus.APPROVED,
+    )
     pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first()
     fit_assessment = assess_posted_opportunity_fit(startup, opp)
     return render(request, "workspace/posted_opportunity_detail.html", {
@@ -1266,7 +1275,12 @@ def posted_opportunity_add_to_pipeline(request, pk):
     guard = check_write_permission(membership)
     if guard:
         return guard
-    opp = get_object_or_404(PostedOpportunity, pk=pk, status=PostedOpportunity.Status.OPEN)
+    opp = get_object_or_404(
+        PostedOpportunity,
+        pk=pk,
+        status=PostedOpportunity.Status.OPEN,
+        review_status=PostedOpportunity.ReviewStatus.APPROVED,
+    )
     opportunity, created, assessment = create_pipeline_from_posted_opportunity(startup, request.user, opp)
     if created:
         log_activity(
@@ -1293,6 +1307,7 @@ def posted_opportunity_create(request):
     if request.method == "POST" and form.is_valid():
         opp = form.save(commit=False)
         opp.posted_by = request.user
+        opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
         opp.save()
         messages.success(request, f"Opportunity '{opp.title}' posted.")
         return redirect("ops_dashboard")
@@ -1342,7 +1357,9 @@ def posted_opportunity_manage(request):
         "active_status": status,
         "search": search,
         "total": PostedOpportunity.objects.count(),
-        "open_count": PostedOpportunity.objects.filter(status="open").count(),
+        "open_count": PostedOpportunity.objects.filter(
+            status="open", review_status=PostedOpportunity.ReviewStatus.APPROVED
+        ).count(),
         "featured_count": PostedOpportunity.objects.filter(is_featured=True).count(),
     })
 
@@ -1370,11 +1387,14 @@ def ops_dashboard(request):
     qs = PostedOpportunity.objects.all()
     opp_type = request.GET.get("type", "")
     status = request.GET.get("status", "")
+    review_status = request.GET.get("review", "")
     search = request.GET.get("q", "")
     if opp_type:
         qs = qs.filter(opportunity_type=opp_type)
     if status:
         qs = qs.filter(status=status)
+    if review_status in PostedOpportunity.ReviewStatus.values:
+        qs = qs.filter(review_status=review_status)
     if search:
         qs = qs.filter(title__icontains=search) | qs.filter(funder_name__icontains=search)
 
@@ -1390,11 +1410,18 @@ def ops_dashboard(request):
         "opportunities": qs,
         "type_choices": PostedOpportunity.OpportunityType.choices,
         "status_choices": PostedOpportunity.Status.choices,
+        "review_status_choices": PostedOpportunity.ReviewStatus.choices,
         "active_type": opp_type,
         "active_status": status,
+        "active_review_status": review_status,
         "search": search,
         "total": PostedOpportunity.objects.count(),
-        "open_count": PostedOpportunity.objects.filter(status="open").count(),
+        "open_count": PostedOpportunity.objects.filter(
+            status="open", review_status=PostedOpportunity.ReviewStatus.APPROVED
+        ).count(),
+        "pending_review_count": PostedOpportunity.objects.filter(
+            review_status=PostedOpportunity.ReviewStatus.PENDING
+        ).count(),
         "closed_count": PostedOpportunity.objects.filter(status="closed").count(),
         "featured_count": PostedOpportunity.objects.filter(is_featured=True).count(),
         "total_startups": total_startups,
@@ -1426,10 +1453,26 @@ def ops_opportunity_toggle_status(request, pk):
     if request.method != "POST":
         return redirect("ops_dashboard")
     opp = get_object_or_404(PostedOpportunity, pk=pk)
-    new_status = request.POST.get("status", opp.status)
-    opp.status = new_status
-    opp.save(update_fields=["status", "updated_at"])
-    messages.success(request, f"'{opp.title}' status updated to {opp.get_status_display()}.")
+    review_status = request.POST.get("review_status")
+    new_status = request.POST.get("status")
+    if review_status:
+        if review_status not in PostedOpportunity.ReviewStatus.values:
+            return HttpResponseForbidden("Invalid opportunity review status.")
+        opp.review_status = review_status
+        opp.save(update_fields=["review_status", "updated_at"])
+        messages.success(request, f"'{opp.title}' review status changed to {opp.get_review_status_display()}.")
+        if review_status == PostedOpportunity.ReviewStatus.APPROVED and opp.status == PostedOpportunity.Status.OPEN:
+            run_matching_agent(
+                trigger="manual",
+                triggered_by=request.user,
+                target_opportunity=opp,
+            )
+    elif new_status:
+        if new_status not in PostedOpportunity.Status.values:
+            return HttpResponseForbidden("Invalid opportunity status.")
+        opp.status = new_status
+        opp.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"'{opp.title}' status updated to {opp.get_status_display()}.")
     return redirect("ops_dashboard")
 
 
@@ -1452,7 +1495,7 @@ def ops_run_scraper(request):
         messages.success(
             request,
             f"Scraper Agent finished: Ingested {stats['created']} new opportunities "
-            f"({stats['skipped_duplicates']} duplicates skipped). Auto-match & notifications dispatched!"
+            f"({stats['skipped_duplicates']} duplicates skipped). New discoveries are pending admin review."
         )
     else:
         messages.info(
@@ -1480,11 +1523,13 @@ def pwa_service_worker_view(request):
 
 def pwa_vapid_public_key_view(request):
     """Returns the public VAPID key; it is safe to expose to unauthenticated clients."""
-    from .push_service import get_vapid_public_key
     try:
+        from .push_service import get_vapid_public_key
+
         public_key = get_vapid_public_key()
         return JsonResponse({"publicKey": public_key})
     except Exception as e:
+        logger.exception("Could not load VAPID public key")
         return JsonResponse({"error": str(e)}, status=500)
 
 

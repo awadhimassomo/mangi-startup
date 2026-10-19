@@ -254,11 +254,11 @@ admin.site.register(StartupMember)
 
 @admin.register(PostedOpportunity)
 class PostedOpportunityAdmin(admin.ModelAdmin):
-    list_display = ("title", "funder_name", "opportunity_type", "status", "is_featured", "deadline", "posted_by", "created_at")
-    list_filter = ("status", "opportunity_type", "is_featured")
+    list_display = ("title", "funder_name", "opportunity_type", "review_status", "status", "is_featured", "deadline", "posted_by", "created_at")
+    list_filter = ("review_status", "status", "opportunity_type", "is_featured")
     search_fields = ("title", "funder_name", "tags")
     readonly_fields = ("posted_by", "created_at", "updated_at")
-    list_editable = ("status", "is_featured")
+    list_editable = ("review_status", "status", "is_featured")
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:

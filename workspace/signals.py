@@ -17,7 +17,7 @@ def auto_match_on_new_opportunity(sender, instance, created, **kwargs):
     """When a new open opportunity is posted, run the matching agent for it."""
     if not created:
         return
-    if instance.status != "open":
+    if instance.status != "open" or instance.review_status != instance.ReviewStatus.APPROVED:
         return
     from .ai_pipeline import run_matching_agent
     run_matching_agent(trigger="signal", triggered_by=instance.posted_by, target_opportunity=instance)

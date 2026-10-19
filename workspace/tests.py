@@ -3,9 +3,11 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 
 from .admin import UniqueEmailUserChangeForm, UniqueEmailUserCreationForm
 from .forms import SignUpForm
+from .models import PostedOpportunity, Startup, StartupMember
 
 
 class SignUpFormTests(TestCase):
@@ -170,4 +172,78 @@ class PwaAndPushNotificationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "success")
         send_push.assert_called_once()
+
+
+class ScrapedOpportunityReviewTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.startup_user = User.objects.create_user(
+            username="founder", email="founder@example.com", password="pass12345"
+        )
+        startup = Startup.objects.create(name="Test Startup", country="Tanzania")
+        StartupMember.objects.create(
+            startup=startup,
+            user=self.startup_user,
+            role=StartupMember.Role.STARTUP_ADMIN,
+            is_active=True,
+        )
+        self.admin = User.objects.create_superuser(
+            username="reviewadmin", email="reviewadmin@example.com", password="pass12345"
+        )
+        self.opportunity = PostedOpportunity.objects.create(
+            title="Scraped opportunity awaiting review",
+            funder_name="Example Funder",
+            posted_by=self.admin,
+            review_status=PostedOpportunity.ReviewStatus.PENDING,
+        )
+
+    @patch("workspace.scraper_agent.PostedOpportunity.objects.create")
+    def test_scraper_ingestion_defaults_to_pending_review(self, create_opportunity):
+        from .scraper_agent import ingest_opportunity
+
+        payload = {
+            "title": "New scraped grant",
+            "funder_name": "Example Funder",
+            "application_link": "https://example.org/grant",
+        }
+        ingest_opportunity(payload, posted_by=self.admin)
+
+        self.assertEqual(
+            create_opportunity.call_args.kwargs["review_status"],
+            PostedOpportunity.ReviewStatus.PENDING,
+        )
+
+    def test_pending_scraped_opportunity_is_hidden_from_startups(self):
+        self.client.force_login(self.startup_user)
+
+        response = self.client.get(reverse("posted_opportunity_list"))
+        detail_response = self.client.get(
+            reverse("posted_opportunity_detail", args=[self.opportunity.pk])
+        )
+
+        self.assertNotContains(response, self.opportunity.title)
+        self.assertEqual(detail_response.status_code, 404)
+
+    def test_admin_approval_makes_open_opportunity_public(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse("ops_opportunity_toggle_status", args=[self.opportunity.pk]),
+            {"review_status": PostedOpportunity.ReviewStatus.APPROVED},
+        )
+
+        self.assertRedirects(response, reverse("ops_dashboard"))
+        self.opportunity.refresh_from_db()
+        self.assertEqual(self.opportunity.review_status, PostedOpportunity.ReviewStatus.APPROVED)
+
+        self.client.force_login(self.startup_user)
+        board_response = self.client.get(reverse("posted_opportunity_list"))
+        self.assertContains(board_response, self.opportunity.title)
+
+    def test_startup_user_cannot_approve_scraped_opportunity(self):
+        self.client.force_login(self.startup_user)
+        response = self.client.post(
+            reverse("ops_opportunity_toggle_status", args=[self.opportunity.pk]),
+            {"review_status": PostedOpportunity.ReviewStatus.APPROVED},
+        )
+        self.assertEqual(response.status_code, 403)
 

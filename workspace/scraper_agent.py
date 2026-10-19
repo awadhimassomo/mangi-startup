@@ -429,6 +429,7 @@ def ingest_opportunity(payload, posted_by=None):
         funder_name=payload.get("funder_name", "Global Funder"),
         opportunity_type=payload.get("opportunity_type", PostedOpportunity.OpportunityType.GRANT),
         status=payload.get("status", PostedOpportunity.Status.OPEN),
+        review_status=PostedOpportunity.ReviewStatus.PENDING,
         short_description=payload.get("short_description", ""),
         eligibility=payload.get("eligibility", ""),
         amount_min=payload.get("amount_min"),
