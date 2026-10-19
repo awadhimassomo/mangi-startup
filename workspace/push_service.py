@@ -93,6 +93,7 @@ def send_push_to_user(user, title, body, link=None, tag=None, icon=None, badge=N
         "tag": tag or "fundos-notif",
         "icon": icon or "/static/workspace/icon-192.png",
         "badge": badge or "/static/workspace/badge-72.png",
+        "badge_count": user.notifications.filter(is_read=False).count(),
     }
 
     success_count = 0

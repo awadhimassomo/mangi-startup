@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fundos-pwa-v10';
+const CACHE_NAME = 'fundos-pwa-v11';
 const STATIC_ASSETS = [
     '/static/workspace/styles.css',
     '/static/workspace/manifest.json',
@@ -133,7 +133,12 @@ self.addEventListener('push', function(event) {
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+        self.registration.showNotification(data.title, options).then(function() {
+            // Number on the app icon (installed app, Android/iOS 16.4+)
+            if (data.badge_count && self.navigator && 'setAppBadge' in self.navigator) {
+                return self.navigator.setAppBadge(data.badge_count).catch(function() {});
+            }
+        })
     );
 });
 

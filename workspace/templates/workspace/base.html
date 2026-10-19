@@ -276,6 +276,15 @@
         });
     }
 
+    // ── Number on the app icon, kept in step with the unread count ──
+    (function () {
+        try {
+            var unread = {{ unread_notifications|default:0 }};
+            if (unread > 0 && 'setAppBadge' in navigator) navigator.setAppBadge(unread);
+            else if ('clearAppBadge' in navigator) navigator.clearAppBadge();
+        } catch (e) {}
+    })();
+
     // ── Web Push Notification Client Helper ──────────────────────────────────
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
