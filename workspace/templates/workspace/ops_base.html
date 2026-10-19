@@ -57,13 +57,16 @@
         .ops-eyebrow { font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
         .ops-page-title { font-size:1.1rem; font-weight:800; margin:0; }
         .ops-content { padding:1.75rem 2rem; }
+        .ops-menu-btn, .ops-overlay { display:none; }
         @media (max-width: 800px) {
             .ops-shell { flex-direction:column; }
-            .ops-sidebar { width:100%; flex-direction:row; align-items:center; padding:0.5rem; overflow-x:auto; border-right:none; border-bottom:1px solid var(--border); }
-            .ops-brand { padding:0 0.5rem; border-bottom:none; margin:0; }
-            .ops-brand div:last-child, .ops-footer, .ops-nav .nav-section { display:none; }
-            .ops-nav { flex-direction:row; padding:0; gap:0.25rem; flex:none; }
-            .ops-nav a, .ops-nav button { white-space:nowrap; }
+            .ops-sidebar { position:fixed; top:0; left:0; bottom:0; z-index:100; width:260px; overflow-y:auto;
+                transform:translateX(-100%); transition:transform 0.2s ease; box-shadow:4px 0 24px rgba(0,0,0,.2); }
+            body.ops-menu-open .ops-sidebar { transform:none; }
+            .ops-overlay { position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.4); }
+            body.ops-menu-open .ops-overlay { display:block; }
+            .ops-menu-btn { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; margin-right:0.5rem;
+                border:none; border-radius:10px; background:var(--accent,#C72C41); color:#fff; font-size:1.2rem; cursor:pointer; }
             .ops-topbar { padding:0.6rem 1rem; }
             .ops-content { padding:1rem; }
         }
@@ -76,6 +79,7 @@
 </head>
 <body>
 <div class="ops-shell">
+    <div class="ops-overlay" onclick="document.body.classList.remove('ops-menu-open')"></div>
 
     {# ── Ops Sidebar ── #}
     <aside class="ops-sidebar">
@@ -137,6 +141,7 @@
     <div class="ops-main">
         <div class="ops-topbar">
             <div class="ops-topbar-left">
+                <button type="button" class="ops-menu-btn" aria-label="Open menu" onclick="document.body.classList.toggle('ops-menu-open')">&#9776;</button>
                 <p class="ops-eyebrow" style="margin:0;">Mangi FundOS &rsaquo; Operations</p>
             </div>
         </div>
