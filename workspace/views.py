@@ -18,7 +18,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .source_watch import register_source_from_link, scan_source
-from .ai_pipeline import extract_opportunity_from_image, assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
+from .opportunity_research import read_screenshot
+from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
     BudgetPlanForm,
@@ -1370,7 +1371,7 @@ def posted_opportunity_extract(request):
     if image.size > 5 * 1024 * 1024:
         return JsonResponse({"error": "Image is larger than 5 MB."}, status=400)
     try:
-        data = extract_opportunity_from_image(image.read(), image.content_type)
+        data = read_screenshot(image.read(), image.content_type)
     except Exception as exc:  # noqa: BLE001
         return JsonResponse({"error": f"Could not read the image: {exc}"}, status=502)
     return JsonResponse({"data": data})
@@ -1421,7 +1422,7 @@ def ops_quick_post(request):
                 errors.append(f"{image.name}: larger than 15 MB.")
                 continue
             try:
-                data = extract_opportunity_from_image(image.read(), image.content_type)
+                data = read_screenshot(image.read(), image.content_type)
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{image.name}: could not read it ({exc}).")
                 continue

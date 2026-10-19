@@ -306,6 +306,7 @@ def extract_opportunity_from_image(image_bytes, media_type):
         "deadline must be YYYY-MM-DD or empty. amount_min/amount_max are plain numbers or empty. "
         "currency is a 3-letter code (default USD). tags is comma-separated lowercase keywords. "
         "short_description is 2-4 sentences summarising the opportunity. "
+        "application_link is any website or URL printed in the image (add https:// if missing). "
         "Use an empty string for anything not present in the image; never invent details."
     )
     data = ask_openai_json(prompt, image_bytes, media_type)

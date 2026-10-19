@@ -352,7 +352,7 @@ class QuickPostTests(TestCase):
                 "currency": "USD", "deadline": "2999-01-01", "application_link": "https://f.org/apply",
                 "short_description": "", "eligibility": "", "amount_min": "", "geographic_focus": "",
                 "sector_focus": "", "tags": ""}
-        with mock.patch("workspace.views.extract_opportunity_from_image", return_value=data):
+        with mock.patch("workspace.views.read_screenshot", return_value=data):
             resp = self.client.post("/board/quick-post/", {"images": img})
         opp = PostedOpportunity.objects.get()
         self.assertRedirects(resp, f"/board/{opp.pk}/edit/?from=quick")
@@ -379,3 +379,35 @@ class QuickFlowRedirectTests(TestCase):
         resp = self.client.post(f"/board/{opp.pk}/edit/", data)
         self.assertRedirects(resp, "/ops/")
         self.assertContains(self.client.get(f"/board/{opp.pk}/"), "Back to manage")
+
+
+class ResearchTests(TestCase):
+    def test_fills_blanks_from_website_then_search(self):
+        from unittest import mock
+        from . import opportunity_research as r
+        image_data = {k: "" for k in r.EXTRACT_FIELDS}
+        image_data.update({"title": "Big Grant", "funder_name": "Fund", "opportunity_type": "other",
+                           "application_link": "https://fund.org/grant"})
+        site = {k: "" for k in r.EXTRACT_FIELDS}
+        site.update({"amount_max": "20000", "deadline": "2999-05-01", "opportunity_type": "grant",
+                     "title": "SHOULD NOT OVERRIDE"})
+        searched = {k: "" for k in r.EXTRACT_FIELDS}
+        searched.update({"eligibility": "Startups in Africa", "short_description": "A grant."})
+        with mock.patch.object(r, "_from_website", return_value=site), \
+                mock.patch.object(r, "_web_search_openai", return_value=searched) as search:
+            out = r.research_opportunity(image_data)
+        self.assertEqual(out["title"], "Big Grant")
+        self.assertEqual(out["amount_max"], "20000")
+        self.assertEqual(out["opportunity_type"], "grant")
+        self.assertEqual(out["eligibility"], "Startups in Africa")
+        self.assertTrue(search.called)
+
+    def test_never_raises_when_everything_fails(self):
+        from unittest import mock
+        from . import opportunity_research as r
+        d = {k: "" for k in r.EXTRACT_FIELDS}
+        d.update({"title": "X", "application_link": "https://x.org"})
+        with mock.patch.object(r, "_from_website", side_effect=RuntimeError("boom")), \
+                mock.patch.object(r, "_web_search_openai", side_effect=RuntimeError("no")), \
+                mock.patch.object(r, "_web_search_fallback", side_effect=RuntimeError("no")):
+            self.assertEqual(r.research_opportunity(d)["title"], "X")
