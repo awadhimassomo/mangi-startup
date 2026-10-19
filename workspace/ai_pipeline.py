@@ -302,3 +302,42 @@ def extract_opportunity_from_image(image_bytes, media_type):
     if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
         result["opportunity_type"] = PostedOpportunity.OpportunityType.OTHER
     return result
+
+
+def extract_opportunity_from_text(text, url, links):
+    """Read a full article and return opportunity fields as strings, or None if no API key."""
+    import json
+    import os
+    import re
+
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    types = ", ".join(PostedOpportunity.OpportunityType.values)
+    link_lines = "\n".join(f"- {t or '(no text)'} -> {h}" for t, h in links[:60])
+    prompt = (
+        f"This is the full text of an article ({url}) announcing a funding opportunity. "
+        f"Reply with ONLY a JSON object with keys: {', '.join(EXTRACT_FIELDS)}. "
+        f"opportunity_type must be one of: {types}. deadline is YYYY-MM-DD or empty. "
+        "amount_min/amount_max are plain numbers for the award size (per award) or empty; currency is a 3-letter code. "
+        "funder_name is the organisation actually offering the money, not the website that posted the article. "
+        "short_description is 2-4 sentences. eligibility lists who can apply. "
+        "application_link must be copied exactly from the candidate links below (the funder's own page where one "
+        "applies), or empty. Use empty strings for anything not stated; never invent details.\n\n"
+        f"Candidate links:\n{link_lines}\n\nArticle:\n{text[:20000]}"
+    )
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model=EXTRACT_MODEL, max_tokens=1500, messages=[{"role": "user", "content": prompt}]
+    )
+    out = "".join(b.text for b in response.content if b.type == "text")
+    match = re.search(r"\{.*\}", out, re.DOTALL)
+    if not match:
+        return None
+    data = json.loads(match.group(0))
+    result = {k: ("" if data.get(k) is None else str(data.get(k))) for k in EXTRACT_FIELDS}
+    if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
+        result["opportunity_type"] = ""
+    return result

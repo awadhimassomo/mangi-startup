@@ -1267,16 +1267,22 @@ def posted_opportunity_list(request):
 
 @login_required
 def posted_opportunity_detail(request, pk):
-    startup, membership, redirect_response = require_startup_access(request)
-    if redirect_response:
-        return redirect_response
-    opp = get_object_or_404(
-        PostedOpportunity,
-        pk=pk,
-        review_status=PostedOpportunity.ReviewStatus.APPROVED,
-    )
-    pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first()
-    fit_assessment = assess_posted_opportunity_fit(startup, opp)
+    if request.user.is_staff:
+        # Staff review any opportunity (including pending ones) without needing a startup workspace.
+        opp = get_object_or_404(PostedOpportunity, pk=pk)
+        startup = get_current_startup(request.user)
+        membership = get_current_membership(request.user)
+    else:
+        startup, membership, redirect_response = require_startup_access(request)
+        if redirect_response:
+            return redirect_response
+        opp = get_object_or_404(
+            PostedOpportunity,
+            pk=pk,
+            review_status=PostedOpportunity.ReviewStatus.APPROVED,
+        )
+    pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first() if startup else None
+    fit_assessment = assess_posted_opportunity_fit(startup, opp) if startup else None
     return render(request, "workspace/posted_opportunity_detail.html", {
         "opp": opp,
         "membership": membership,

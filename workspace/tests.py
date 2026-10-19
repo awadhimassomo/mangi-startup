@@ -302,3 +302,35 @@ class ScrapedOpportunityReviewTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+
+
+class StaffDetailAndScraperTests(TestCase):
+    def test_staff_without_startup_can_open_pending_opportunity(self):
+        from .models import PostedOpportunity
+        staff = get_user_model().objects.create_superuser("boss", "b@x.com", "pw")
+        self.client.force_login(staff)
+        opp = PostedOpportunity.objects.create(
+            title="Pending Grant", funder_name="F", review_status="pending"
+        )
+        resp = self.client.get(f"/board/{opp.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Pending Grant")
+
+    def test_enrich_uses_real_apply_link_and_full_text_amounts(self):
+        from unittest import mock
+        from decimal import Decimal
+        from . import scraper_agent as sa
+        html = b"""<html><body><article><div class="entry-content">
+        <p>Grants of up to $50,000 are available. Deadline: 30 November 2026.</p>
+        <p>Visit <a href="https://grants.example.org/apply">Example Foundation Grant</a>.</p>
+        <ins><a href="https://ads.example.com/car">Car ad</a></ins>
+        <a href="https://twitter.com/x">tw</a></div></article></body></html>"""
+        resp = mock.Mock(status_code=200, content=html)
+        payload = {"title": "T", "application_link": "https://opportunitydesk.org/post/", "amount_min": None,
+                   "amount_max": None, "currency": "USD", "deadline": None}
+        with mock.patch.object(sa.requests, "get", return_value=resp), \
+                mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
+            out = sa.enrich_payload(payload, "https://opportunitydesk.org/post/")
+        self.assertEqual(out["application_link"], "https://grants.example.org/apply")
+        self.assertEqual(out["amount_max"], Decimal("50000"))
+        self.assertEqual(str(out["deadline"]), "2026-11-30")

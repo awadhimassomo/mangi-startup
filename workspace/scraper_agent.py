@@ -407,6 +407,102 @@ def parse_opportunity_payload(raw_title, raw_content, source_url, funder_hint=""
     }
 
 
+APPLY_TEXT = re.compile(r"apply|application|click here|official|visit|more information|website|register", re.I)
+SKIP_LINK_HOSTS = (
+    "facebook.com", "twitter.com", "x.com", "linkedin.com", "instagram.com", "youtube.com",
+    "whatsapp.com", "t.me", "telegram.me", "pinterest.com", "google.com", "doubleclick.net",
+    "googlesyndication.com", "wordpress.com", "gravatar.com", "mailto:",
+)
+
+
+def _fetch_article(url):
+    """Returns (full_text, [(link_text, href), ...]) for an article page, ignoring ads/sidebars."""
+    response = requests.get(url, headers=DEFAULT_HEADERS, timeout=15)
+    if response.status_code != 200:
+        return "", []
+    soup = BeautifulSoup(response.content, "html.parser")
+    body = (
+        soup.select_one(".entry-content, .post-content, .article-content")
+        or soup.find("article")
+        or soup.find("main")
+        or soup.body
+    )
+    if body is None:
+        return "", []
+    for junk in body.select("script, style, ins, iframe, form, nav, aside, .adsbygoogle"):
+        junk.decompose()
+    own_host = urllib.parse.urlparse(url).netloc.replace("www.", "")
+    links = []
+    for a in body.find_all("a", href=True):
+        href = urllib.parse.urljoin(url, a["href"])
+        host = urllib.parse.urlparse(href).netloc.replace("www.", "")
+        if not host or host == own_host or any(bad in href for bad in SKIP_LINK_HOSTS):
+            continue
+        links.append((a.get_text(" ", strip=True)[:80], href))
+    text = re.sub(r"\s+", " ", body.get_text(" ")).strip()
+    return text, links
+
+
+def _pick_apply_link(links):
+    for text, href in links:
+        if APPLY_TEXT.search(text):
+            return href
+    return links[0][1] if links else ""
+
+
+def enrich_payload(payload, article_url):
+    """
+    The RSS feed only carries a teaser. Open the real article to get the full text,
+    the funder's own application link, the amounts, deadline and eligibility.
+    """
+    try:
+        text, links = _fetch_article(article_url)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not open article %s: %s", article_url, exc)
+        return payload
+    if not text:
+        return payload
+
+    payload["application_link"] = _pick_apply_link(links) or article_url
+
+    amount_min, amount_max, currency = _extract_amount(text)
+    if amount_max:
+        payload["amount_min"], payload["amount_max"], payload["currency"] = amount_min, amount_max, currency
+    deadline = _extract_deadline(text)
+    if deadline:
+        payload["deadline"] = deadline
+
+    try:
+        from .ai_pipeline import extract_opportunity_from_text
+
+        ai = extract_opportunity_from_text(text, article_url, links)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("AI enrichment skipped for %s: %s", article_url, exc)
+        ai = None
+    if ai:
+        for field in ("funder_name", "short_description", "eligibility", "geographic_focus", "sector_focus", "tags"):
+            if ai.get(field):
+                payload[field] = ai[field][:255] if field != "short_description" and field != "eligibility" else ai[field]
+        if ai.get("opportunity_type"):
+            payload["opportunity_type"] = ai["opportunity_type"]
+        if ai.get("currency"):
+            payload["currency"] = ai["currency"][:10]
+        for field in ("amount_min", "amount_max"):
+            try:
+                if ai.get(field):
+                    payload[field] = Decimal(ai[field].replace(",", ""))
+            except (ArithmeticError, ValueError):
+                pass
+        if ai.get("deadline"):
+            try:
+                payload["deadline"] = datetime.date.fromisoformat(ai["deadline"])
+            except ValueError:
+                pass
+        if ai.get("application_link", "").startswith("http"):
+            payload["application_link"] = ai["application_link"]
+    return payload
+
+
 def ingest_opportunity(payload, posted_by=None):
     """
     Creates a PostedOpportunity record if valid and not already existing.
@@ -521,6 +617,8 @@ def run_opportunity_scraper(acting_user=None, custom_urls=None, max_items_per_fe
                 continue
             try:
                 payload = scrape_webpage_opportunity(url)
+                if payload and not PostedOpportunity.objects.filter(title__iexact=payload["title"]).exists():
+                    payload = enrich_payload(payload, url)
                 if payload:
                     stats["scraped"] += 1
                     opp, created = ingest_opportunity(payload, posted_by=acting_user)
@@ -550,6 +648,13 @@ def run_opportunity_scraper(acting_user=None, custom_urls=None, max_items_per_fe
                     stats["skipped_not_target"] += 1
                     continue
 
+                if source.get("default_type"):
+                    payload["opportunity_type"] = source["default_type"]
+
+                if PostedOpportunity.objects.filter(title__iexact=payload["title"]).exists():
+                    stats["skipped_duplicates"] += 1
+                    continue
+                payload = enrich_payload(payload, item["link"])
                 if source.get("default_type"):
                     payload["opportunity_type"] = source["default_type"]
 

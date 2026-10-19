@@ -15,7 +15,7 @@
     <div style="display:flex;gap:0.5rem;">
         {% if pipeline_opportunity %}
             <a href="{{ pipeline_opportunity.get_absolute_url }}" class="button button-sm">View in pipeline</a>
-        {% elif opp.status == "open" %}
+        {% elif opp.status == "open" and current_startup %}
             <form method="post" action="{% url 'posted_opportunity_add_to_pipeline' opp.pk %}">
                 {% csrf_token %}
                 <button type="submit" class="button button-sm">Add to pipeline</button>
@@ -71,6 +71,7 @@
     </article>
 </section>
 
+{% if fit_assessment %}
 <article class="panel" style="margin-bottom:1rem;">
     <div class="panel-header">
         <h2>AI startup match</h2>
@@ -89,6 +90,7 @@
         {% endfor %}
     </ul>
 </article>
+{% endif %}
 
 {% if opp.short_description %}
 <article class="panel" style="margin-bottom:1rem;">
