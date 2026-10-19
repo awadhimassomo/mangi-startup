@@ -8,3 +8,6 @@ venv/
 env/
 staticfiles/
 .DS_Store
+
+# Push notification private key (generated on each server)
+vapid_private.pem
