@@ -1,6 +1,6 @@
 """Watch external websites for new funding opportunities."""
 import hashlib
-import json
+
 import os
 import re
 import urllib.request
@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 
 from django.utils import timezone
 
-from .ai_pipeline import EXTRACT_FIELDS, EXTRACT_MODEL
+from .ai_pipeline import EXTRACT_FIELDS, ask_openai_json
 from .models import DiscoveredOpportunity, OpportunitySource, PostedOpportunity
 
 MAX_BYTES = 2_000_000
@@ -51,29 +51,20 @@ def fetch_page_text(url):
 
 
 def _find_opportunities(page_text, url):
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set.")
     types = ", ".join(PostedOpportunity.OpportunityType.values)
     prompt = (
         f"Below is the text of the web page {url}, with links shown as [link: URL]. "
         "Find every funding opportunity for startups listed or announced on it (grants, loans, equity, "
-        "accelerators, competitions, fellowships). Reply with ONLY a JSON array; each item is an object with keys: "
+        "accelerators, competitions, fellowships). Reply with ONLY a JSON object {'opportunities': [...]}; each item is an object with keys: "
         f"{', '.join(EXTRACT_FIELDS)}. opportunity_type must be one of: {types}. "
         "application_link must be the most specific link for that opportunity from the page. "
         "deadline is YYYY-MM-DD or empty; amounts are plain numbers or empty. "
         "Use empty strings for anything not stated; never invent details. "
-        "Return [] if there are none.\n\n" + page_text[:MAX_TEXT_CHARS]
+        "Use an empty list if there are none.\n\n" + page_text[:MAX_TEXT_CHARS]
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model=EXTRACT_MODEL, max_tokens=4000, messages=[{"role": "user", "content": prompt}]
-    )
-    text = "".join(b.text for b in response.content if b.type == "text")
-    match = re.search(r"\[.*\]", text, re.DOTALL)
-    return json.loads(match.group(0)) if match else []
+    data = ask_openai_json(prompt, max_tokens=4000)
+    items = data.get("opportunities", [])
+    return items if isinstance(items, list) else []
 
 
 def _key_for(item):

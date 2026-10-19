@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 
 from django.utils import timezone
@@ -246,12 +247,35 @@ def run_matching_agent(trigger="manual", triggered_by=None, target_opportunity=N
 
 # ─── Poster → post extraction ───────────────────────────────────────────────
 
-EXTRACT_MODEL = "claude-sonnet-5-5"
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 EXTRACT_FIELDS = (
     "title", "funder_name", "opportunity_type", "short_description", "eligibility",
     "amount_min", "amount_max", "currency", "deadline", "application_link",
     "geographic_focus", "sector_focus", "tags",
 )
+
+
+def ask_openai_json(prompt, image_bytes=None, media_type="image/jpeg", max_tokens=1500):
+    """Send a prompt (and optional image) to OpenAI and return the parsed JSON object."""
+    import base64
+    import json
+
+    from openai import OpenAI
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set on the server.")
+    content = [{"type": "text", "text": prompt}]
+    if image_bytes:
+        url = f"data:{media_type};base64,{base64.b64encode(image_bytes).decode()}"
+        content.append({"type": "image_url", "image_url": {"url": url}})
+    response = OpenAI(api_key=api_key).chat.completions.create(
+        model=OPENAI_MODEL,
+        max_tokens=max_tokens,
+        response_format={"type": "json_object"},
+        messages=[{"role": "user", "content": content}],
+    )
+    return json.loads(response.choices[0].message.content)
 
 
 def _shrink_for_ai(image_bytes, media_type):
@@ -271,19 +295,8 @@ def _shrink_for_ai(image_bytes, media_type):
 
 
 def extract_opportunity_from_image(image_bytes, media_type):
-    """Send a poster image to Claude and return a dict of PostedOpportunity form values."""
-    import base64
+    """Send a poster image to OpenAI and return a dict of PostedOpportunity form values."""
     image_bytes, media_type = _shrink_for_ai(image_bytes, media_type)
-    import json
-    import os
-    import re
-
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set on the server.")
-
     types = ", ".join(v for v, _ in PostedOpportunity.OpportunityType.choices)
     prompt = (
         "This image is a poster/flyer for a funding opportunity for startups. Extract its details and "
@@ -295,26 +308,7 @@ def extract_opportunity_from_image(image_bytes, media_type):
         "short_description is 2-4 sentences summarising the opportunity. "
         "Use an empty string for anything not present in the image; never invent details."
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model=EXTRACT_MODEL,
-        max_tokens=1500,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {
-                    "type": "base64", "media_type": media_type,
-                    "data": base64.b64encode(image_bytes).decode(),
-                }},
-                {"type": "text", "text": prompt},
-            ],
-        }],
-    )
-    text = "".join(b.text for b in response.content if b.type == "text")
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError("The AI response did not contain any details.")
-    data = json.loads(match.group(0))
+    data = ask_openai_json(prompt, image_bytes, media_type)
     result = {k: ("" if data.get(k) is None else str(data.get(k))) for k in EXTRACT_FIELDS}
     if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
         result["opportunity_type"] = PostedOpportunity.OpportunityType.OTHER
@@ -323,14 +317,7 @@ def extract_opportunity_from_image(image_bytes, media_type):
 
 def extract_opportunity_from_text(text, url, links):
     """Read a full article and return opportunity fields as strings, or None if no API key."""
-    import json
-    import os
-    import re
-
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    if not os.environ.get("OPENAI_API_KEY"):
         return None
     types = ", ".join(PostedOpportunity.OpportunityType.values)
     link_lines = "\n".join(f"- {t or '(no text)'} -> {h}" for t, h in links[:60])
@@ -345,15 +332,7 @@ def extract_opportunity_from_text(text, url, links):
         "applies), or empty. Use empty strings for anything not stated; never invent details.\n\n"
         f"Candidate links:\n{link_lines}\n\nArticle:\n{text[:20000]}"
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model=EXTRACT_MODEL, max_tokens=1500, messages=[{"role": "user", "content": prompt}]
-    )
-    out = "".join(b.text for b in response.content if b.type == "text")
-    match = re.search(r"\{.*\}", out, re.DOTALL)
-    if not match:
-        return None
-    data = json.loads(match.group(0))
+    data = ask_openai_json(prompt)
     result = {k: ("" if data.get(k) is None else str(data.get(k))) for k in EXTRACT_FIELDS}
     if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
         result["opportunity_type"] = ""
