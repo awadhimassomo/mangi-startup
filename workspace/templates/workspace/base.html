@@ -124,6 +124,14 @@
                     {% endfor %}
                 </div>
             {% endif %}
+            {% if current_startup and profile_completion < 100 and request.resolver_match.url_name != 'startup_profile' %}
+                <div class="flash-stack">
+                    <div class="flash-message">
+                        Your profile is {{ profile_completion }}% complete. Finish it for better opportunity matches.
+                        <a href="{% url 'startup_profile' %}"><strong>Complete profile →</strong></a>
+                    </div>
+                </div>
+            {% endif %}
             <main class="content">
                 {% block content %}{% endblock %}
             </main>

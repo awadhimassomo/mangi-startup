@@ -33,7 +33,7 @@
 
 <div class="board-grid">
     {% for opp in opportunities %}
-    <article class="board-card {% if opp.is_featured %}board-card-featured{% endif %}">
+    <article class="board-card {% if opp.is_featured %}board-card-featured{% endif %}{% if opp.pk in pipeline_source_ids %} board-card-done{% endif %}">
         {% if opp.poster_image %}
             <a href="{{ opp.get_absolute_url }}" class="board-card-poster"><img src="{{ opp.poster_image.url }}" alt="{{ opp.title }}" loading="lazy"></a>
         {% endif %}

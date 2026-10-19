@@ -1,0 +1,63 @@
+{% extends "workspace/ops_base.html" %}
+{% block title %}Watched sites — Mangi{% endblock %}
+{% block content %}
+<style>
+.src-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:1.25rem; margin-bottom:1.25rem; }
+.src-card h3 { margin:0 0 0.75rem; font-size:1rem; }
+.src-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.6rem 0; border-top:1px solid var(--border); flex-wrap:wrap; }
+.src-row:first-of-type { border-top:none; }
+.src-row form { display:inline; margin:0; }
+.src-err { color:#dc2626; font-size:0.78rem; }
+</style>
+
+<div style="max-width:900px;">
+    <div class="src-card">
+        <h3>Found by the watcher — waiting for your review ({{ pending|length }})</h3>
+        {% for d in pending %}
+        <div class="src-row">
+            <div>
+                <strong>{{ d.data.title }}</strong>
+                <div class="muted small">{{ d.data.funder_name }}{% if d.data.deadline %} · Due {{ d.data.deadline }}{% endif %} · from {{ d.source }}</div>
+            </div>
+            <div>
+                <a class="button button-sm" href="{% url 'posted_opportunity_create' %}?discovered={{ d.pk }}">Review &amp; post</a>
+                <form method="post" action="{% url 'ops_discovery_dismiss' d.pk %}">{% csrf_token %}
+                    <button class="button button-secondary button-sm">Dismiss</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="muted small">Nothing new yet. New finds will show up here.</p>
+        {% endfor %}
+    </div>
+
+    <div class="src-card">
+        <h3>Websites being watched ({{ sources|length }})</h3>
+        <form method="post" action="{% url 'ops_source_add' %}" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+            {% csrf_token %}
+            <input type="url" name="url" required placeholder="https://funder-site.org/opportunities" style="flex:1;min-width:240px;padding:0.55rem 0.8rem;border:1px solid #D1D5DB;border-radius:8px;">
+            <button class="button button-sm">Add website</button>
+        </form>
+        {% for s in sources %}
+        <div class="src-row">
+            <div>
+                <strong>{{ s.name|default:s.url }}</strong>
+                <div class="muted small">{{ s.url }}</div>
+                <div class="muted small">
+                    {% if s.last_checked_at %}Last checked {{ s.last_checked_at|timesince }} ago{% else %}Not checked yet{% endif %}
+                    {% if not s.is_active %} · paused{% endif %}
+                </div>
+                {% if s.last_error %}<div class="src-err">Last error: {{ s.last_error }}</div>{% endif %}
+            </div>
+            <div>
+                <form method="post" action="{% url 'ops_source_scan' s.pk %}">{% csrf_token %}<button class="button button-secondary button-sm">Check now</button></form>
+                <form method="post" action="{% url 'ops_source_toggle' s.pk %}">{% csrf_token %}<button class="button button-secondary button-sm">{% if s.is_active %}Pause{% else %}Resume{% endif %}</button></form>
+                <form method="post" action="{% url 'ops_source_delete' s.pk %}" onsubmit="return confirm('Stop watching this site?');">{% csrf_token %}<button class="button button-secondary button-sm">Remove</button></form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="muted small">No websites yet. Post an opportunity with an application link and its website is added automatically, or add one above.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

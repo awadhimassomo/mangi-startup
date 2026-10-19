@@ -44,14 +44,35 @@ class Startup(models.Model):
     logo = models.ImageField(upload_to="startup_logos/", blank=True)
     plan = models.CharField(max_length=10, choices=Plan.choices, default=Plan.SOLO)
     plan_expires_at = models.DateField(null=True, blank=True)
+    profile_reminder_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    PROFILE_FIELDS = {
+        "country": "country",
+        "sector": "sector",
+        "short_description": "short description",
+        "problem_statement": "problem you solve",
+        "solution_statement": "your solution",
+        "target_market": "target market",
+        "current_traction": "traction",
+        "founder_name": "founder name",
+    }
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
         return self.name
+
+    @property
+    def missing_profile_fields(self):
+        return [label for field, label in self.PROFILE_FIELDS.items() if not getattr(self, field)]
+
+    @property
+    def profile_completion(self):
+        total = len(self.PROFILE_FIELDS)
+        return round((total - len(self.missing_profile_fields)) * 100 / total)
 
     @property
     def seat_limit(self):
@@ -1009,6 +1030,13 @@ class PostedOpportunity(models.Model):
         from django.utils import timezone
         return (self.deadline - timezone.localdate()).days <= 14
 
+    @classmethod
+    def purge_expired(cls):
+        """Delete posts whose deadline has passed. Pipeline entries survive (SET_NULL)."""
+        from django.utils import timezone
+        deleted, _ = cls.objects.filter(deadline__lt=timezone.localdate()).delete()
+        return deleted
+
 
 class AgentRun(models.Model):
     class Status(models.TextChoices):
@@ -1044,3 +1072,47 @@ class AgentRun(models.Model):
         if self.finished_at:
             return (self.finished_at - self.started_at).seconds
         return None
+
+
+class OpportunitySource(models.Model):
+    """A website Mangi keeps watching for new funding opportunities."""
+
+    name = models.CharField(max_length=255, blank=True)
+    url = models.URLField(unique=True)
+    is_active = models.BooleanField(default=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    last_content_hash = models.CharField(max_length=64, blank=True)
+    last_error = models.CharField(max_length=500, blank=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "url"]
+
+    def __str__(self):
+        return self.name or self.url
+
+
+class DiscoveredOpportunity(models.Model):
+    """An opportunity the watcher found on a source, waiting for staff review."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        POSTED = "posted", "Posted"
+        DISMISSED = "dismissed", "Dismissed"
+
+    source = models.ForeignKey(OpportunitySource, on_delete=models.CASCADE, related_name="discoveries")
+    key = models.CharField(max_length=500)
+    data = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    found_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-found_at"]
+        constraints = [models.UniqueConstraint(fields=["source", "key"], name="unique_discovery_per_source")]
+
+    @property
+    def title(self):
+        return self.data.get("title", "")

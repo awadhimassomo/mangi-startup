@@ -235,3 +235,63 @@ def run_matching_agent(trigger="manual", triggered_by=None, target_opportunity=N
 
     run.save()
     return run
+
+
+# ─── Poster → post extraction ───────────────────────────────────────────────
+
+EXTRACT_MODEL = "claude-sonnet-5-5"
+EXTRACT_FIELDS = (
+    "title", "funder_name", "opportunity_type", "short_description", "eligibility",
+    "amount_min", "amount_max", "currency", "deadline", "application_link",
+    "geographic_focus", "sector_focus", "tags",
+)
+
+
+def extract_opportunity_from_image(image_bytes, media_type):
+    """Send a poster image to Claude and return a dict of PostedOpportunity form values."""
+    import base64
+    import json
+    import os
+    import re
+
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set on the server.")
+
+    types = ", ".join(v for v, _ in PostedOpportunity.OpportunityType.choices)
+    prompt = (
+        "This image is a poster/flyer for a funding opportunity for startups. Extract its details and "
+        "reply with ONLY a JSON object with these keys: "
+        f"{', '.join(EXTRACT_FIELDS)}. "
+        f"opportunity_type must be one of: {types}. "
+        "deadline must be YYYY-MM-DD or empty. amount_min/amount_max are plain numbers or empty. "
+        "currency is a 3-letter code (default USD). tags is comma-separated lowercase keywords. "
+        "short_description is 2-4 sentences summarising the opportunity. "
+        "Use an empty string for anything not present in the image; never invent details."
+    )
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model=EXTRACT_MODEL,
+        max_tokens=1500,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {
+                    "type": "base64", "media_type": media_type,
+                    "data": base64.b64encode(image_bytes).decode(),
+                }},
+                {"type": "text", "text": prompt},
+            ],
+        }],
+    )
+    text = "".join(b.text for b in response.content if b.type == "text")
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError("The AI response did not contain any details.")
+    data = json.loads(match.group(0))
+    result = {k: ("" if data.get(k) is None else str(data.get(k))) for k in EXTRACT_FIELDS}
+    if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
+        result["opportunity_type"] = PostedOpportunity.OpportunityType.OTHER
+    return result

@@ -1,17 +1,19 @@
 import calendar as cal_module
 import csv
 from decimal import Decimal
+from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db.models import Count, Sum
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
+from .source_watch import register_source_from_link, scan_source
+from .ai_pipeline import extract_opportunity_from_image, assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
     BudgetPlanForm,
@@ -55,6 +57,8 @@ from .models import (
     Notification,
     OpportunityStageHistory,
     AgentRun,
+    DiscoveredOpportunity,
+    OpportunitySource,
     PostedOpportunity,
     Startup,
     StartupDocument,
@@ -88,8 +92,20 @@ def signup_view(request):
     form = SignUpForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
+        startup = Startup.objects.create(
+            name=form.cleaned_data["company_name"],
+            country="",
+            contact_email=user.email,
+        )
+        StartupMember.objects.create(
+            startup=startup, user=user, role=StartupMember.Role.STARTUP_ADMIN, is_active=True
+        )
         login(request, user)
-        return redirect("onboarding")
+        messages.success(
+            request,
+            "Welcome! Your workspace is ready. Complete your profile whenever you like for better matches.",
+        )
+        return redirect("dashboard")
     return render(request, "registration/signup.html", {"form": form, "auth_form": AuthenticationForm()})
 
 
@@ -1201,6 +1217,7 @@ def posted_opportunity_list(request):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
+    PostedOpportunity.purge_expired()
     qs = PostedOpportunity.objects.all()
     opp_type = request.GET.get("type", "")
     status = request.GET.get("status", "")
@@ -1215,6 +1232,8 @@ def posted_opportunity_list(request):
         startup.opportunities.filter(source_posted_opportunity__isnull=False)
         .values_list("source_posted_opportunity_id", flat=True)
     )
+    # Already-applied opportunities sink to the bottom (stable sort keeps featured/newest order)
+    qs = sorted(qs, key=lambda o: o.pk in pipeline_source_ids)
     return render(request, "workspace/posted_opportunity_list.html", {
         "opportunities": qs,
         "type_choices": PostedOpportunity.OpportunityType.choices,
@@ -1276,16 +1295,46 @@ def posted_opportunity_add_to_pipeline(request, pk):
 def posted_opportunity_create(request):
     if not request.user.is_staff:
         return HttpResponseForbidden("Only Mangi staff can post opportunities.")
-    form = PostedOpportunityForm(request.POST or None, request.FILES or None)
+    discovery = None
+    initial = {}
+    discovered_id = request.GET.get("discovered") or request.POST.get("discovered")
+    if discovered_id:
+        discovery = DiscoveredOpportunity.objects.filter(pk=discovered_id).first()
+        if discovery:
+            initial = {k: v for k, v in discovery.data.items() if v != ""}
+    form = PostedOpportunityForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         opp = form.save(commit=False)
         opp.posted_by = request.user
         opp.save()
+        register_source_from_link(opp.application_link, request.user)
+        if discovery:
+            discovery.status = DiscoveredOpportunity.Status.POSTED
+            discovery.save(update_fields=["status"])
         messages.success(request, f"Opportunity '{opp.title}' posted.")
         return redirect("ops_dashboard")
     return render(request, "workspace/posted_opportunity_form.html", {
-        "form": form, "action": "Post new opportunity",
+        "form": form, "action": "Post new opportunity", "discovery": discovery,
     })
+
+
+@login_required
+def posted_opportunity_extract(request):
+    """Staff-only: read an uploaded poster with AI and return form values as JSON."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Only Mangi staff can do this."}, status=403)
+    image = request.FILES.get("image")
+    if request.method != "POST" or not image:
+        return JsonResponse({"error": "Upload an image first."}, status=400)
+    if image.content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+        return JsonResponse({"error": "Use a JPG, PNG, GIF or WebP image."}, status=400)
+    if image.size > 5 * 1024 * 1024:
+        return JsonResponse({"error": "Image is larger than 5 MB."}, status=400)
+    try:
+        data = extract_opportunity_from_image(image.read(), image.content_type)
+    except Exception as exc:  # noqa: BLE001
+        return JsonResponse({"error": f"Could not read the image: {exc}"}, status=502)
+    return JsonResponse({"data": data})
 
 
 @login_required
@@ -1388,7 +1437,68 @@ def ops_dashboard(request):
         "total_pipeline_from_board": total_pipeline_from_board,
         "last_run": last_run,
         "recent_runs": recent_runs,
+        "pending_discoveries": DiscoveredOpportunity.objects.filter(
+            status=DiscoveredOpportunity.Status.PENDING
+        ).count(),
     })
+
+
+@login_required
+def ops_sources(request):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
+    return render(request, "workspace/ops_sources.html", {
+        "sources": OpportunitySource.objects.all(),
+        "pending": DiscoveredOpportunity.objects.filter(
+            status=DiscoveredOpportunity.Status.PENDING
+        ).select_related("source"),
+    })
+
+
+@login_required
+def ops_source_add(request):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
+    if request.method == "POST":
+        url = request.POST.get("url", "").strip()
+        if url.startswith(("http://", "https://")):
+            source, created = OpportunitySource.objects.get_or_create(
+                url=url, defaults={"name": urlparse(url).netloc, "added_by": request.user}
+            )
+            messages.success(request, "Website added." if created else "Already watching that website.")
+        else:
+            messages.error(request, "Enter a full web address starting with https://")
+    return redirect("ops_sources")
+
+
+@login_required
+def ops_source_action(request, pk, action):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
+    source = get_object_or_404(OpportunitySource, pk=pk)
+    if request.method == "POST":
+        if action == "delete":
+            source.delete()
+            messages.success(request, "Stopped watching that website.")
+        elif action == "toggle":
+            source.is_active = not source.is_active
+            source.save(update_fields=["is_active"])
+        elif action == "scan":
+            new = scan_source(source)
+            if source.last_error:
+                messages.error(request, f"Check failed: {source.last_error}")
+            else:
+                messages.success(request, f"Checked {source}: {len(new)} new opportunities found.")
+    return redirect("ops_sources")
+
+
+@login_required
+def ops_discovery_dismiss(request, pk):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can do this.")
+    if request.method == "POST":
+        DiscoveredOpportunity.objects.filter(pk=pk).update(status=DiscoveredOpportunity.Status.DISMISSED)
+    return redirect("ops_sources")
 
 
 @login_required

@@ -7,8 +7,10 @@ def workspace_context(request):
         return {}
 
     unread = Notification.objects.filter(user=request.user, is_read=False).count()
+    startup = get_current_startup(request.user)
     return {
-        "current_startup": get_current_startup(request.user),
+        "profile_completion": startup.profile_completion if startup else 100,
+        "current_startup": startup,
         "current_membership": get_current_membership(request.user),
         "unread_notifications": unread,
     }

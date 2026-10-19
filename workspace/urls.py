@@ -57,6 +57,7 @@ urlpatterns = [
     path("exchange-rates/", views.exchange_rate_list_view, name="exchange_rates"),
     path("board/", views.posted_opportunity_list, name="posted_opportunity_list"),
     path("board/post/", views.posted_opportunity_create, name="posted_opportunity_create"),
+    path("board/extract/", views.posted_opportunity_extract, name="posted_opportunity_extract"),
     path("board/<int:pk>/", views.posted_opportunity_detail, name="posted_opportunity_detail"),
     path("board/<int:pk>/add-to-pipeline/", views.posted_opportunity_add_to_pipeline, name="posted_opportunity_add_to_pipeline"),
     path("board/<int:pk>/edit/", views.posted_opportunity_edit, name="posted_opportunity_edit"),
@@ -65,6 +66,12 @@ urlpatterns = [
     path("board/<int:pk>/delete/", views.posted_opportunity_delete, name="posted_opportunity_delete"),
     # Superadmin Ops Dashboard
     path("ops/", views.ops_dashboard, name="ops_dashboard"),
+    path("ops/sources/", views.ops_sources, name="ops_sources"),
+    path("ops/sources/add/", views.ops_source_add, name="ops_source_add"),
+    path("ops/sources/<int:pk>/scan/", views.ops_source_action, {"action": "scan"}, name="ops_source_scan"),
+    path("ops/sources/<int:pk>/toggle/", views.ops_source_action, {"action": "toggle"}, name="ops_source_toggle"),
+    path("ops/sources/<int:pk>/delete/", views.ops_source_action, {"action": "delete"}, name="ops_source_delete"),
+    path("ops/discoveries/<int:pk>/dismiss/", views.ops_discovery_dismiss, name="ops_discovery_dismiss"),
     path("ops/run-agent/", views.ops_run_agent, name="ops_run_agent"),
     path("ops/opportunities/<int:pk>/toggle-status/", views.ops_opportunity_toggle_status, name="ops_opportunity_toggle_status"),
 ]

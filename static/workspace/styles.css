@@ -2632,3 +2632,6 @@ html, body {
     max-height: 420px;
     object-fit: contain;
 }
+
+.board-card-done { opacity:0.5; filter:grayscale(0.8); }
+.board-card-done:hover { opacity:0.85; }

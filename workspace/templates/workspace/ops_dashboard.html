@@ -18,6 +18,12 @@
     </div>
 </div>
 
+{% if pending_discoveries %}
+<a href="{% url 'ops_sources' %}" style="display:block;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.85rem 1.25rem;border-radius:10px;margin-bottom:1.25rem;font-weight:700;text-decoration:none;">
+    🔔 {{ pending_discoveries }} new opportunit{{ pending_discoveries|pluralize:"y,ies" }} found on watched websites — review now →
+</a>
+{% endif %}
+
 {# ── KPI Row ── #}
 <div class="kpi-row" style="margin-bottom:1.75rem;">
     <div class="kpi-card kpi-indigo">

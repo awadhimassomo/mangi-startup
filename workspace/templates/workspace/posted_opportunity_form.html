@@ -32,6 +32,44 @@
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        {% if discovery %}
+        <input type="hidden" name="discovered" value="{{ discovery.pk }}">
+        <div class="form-section" style="background:#fef3c7;border-color:#f59e0b;">Found on <strong>{{ discovery.source }}</strong> — check the details, then save to post it.</div>
+        {% endif %}
+
+        {# ── AI autofill ── #}
+        {% if not opp %}
+        <div class="form-section" style="border-color:var(--accent,#C72C41);">
+            <div class="form-section-title">✨ Autofill from a picture</div>
+            <p class="hint" style="margin-bottom:0.75rem;">Upload a poster or flyer. AI reads it and fills in the form below — review, then save. The image is also used as the poster.</p>
+            <input type="file" id="ai-image" accept="image/*">
+            <button type="button" class="button button-sm" id="ai-btn" style="margin-top:0.75rem;">Read picture with AI</button>
+            <p id="ai-status" class="small" style="margin-top:0.5rem;"></p>
+        </div>
+        <script>
+        document.getElementById("ai-btn").addEventListener("click", async function () {
+            const file = document.getElementById("ai-image").files[0];
+            const status = document.getElementById("ai-status");
+            if (!file) { status.textContent = "Choose an image first."; return; }
+            status.textContent = "Reading picture…"; this.disabled = true;
+            const fd = new FormData(); fd.append("image", file);
+            fd.append("csrfmiddlewaretoken", document.querySelector("[name=csrfmiddlewaretoken]").value);
+            try {
+                const res = await fetch("{% url 'posted_opportunity_extract' %}", {method: "POST", body: fd});
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || "Failed");
+                for (const [k, v] of Object.entries(json.data)) {
+                    const el = document.getElementById("id_" + k);
+                    if (el && v !== "") el.value = v;
+                }
+                const poster = document.getElementById("id_poster_image");
+                const dt = new DataTransfer(); dt.items.add(file); poster.files = dt.files;
+                status.textContent = "Done — review the fields below, then save.";
+            } catch (e) { status.textContent = e.message; }
+            this.disabled = false;
+        });
+        </script>
+        {% endif %}
 
         {# ── 0. Poster image ── #}
         <div class="form-section">

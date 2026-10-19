@@ -27,13 +27,27 @@ class DateInput(forms.DateInput):
 
 
 class SignUpForm(UserCreationForm):
+    """Minimal signup: company name, email, password. The email doubles as the username."""
+
+    company_name = forms.CharField(max_length=255, label="Company name")
     email = forms.EmailField(required=True)
-    first_name = forms.CharField(max_length=150, required=False)
-    last_name = forms.CharField(max_length=150, required=False)
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email")
+        fields = ("company_name", "email")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop("username", None)
+
+    def save(self, commit=True):
+        user = super(UserCreationForm, self).save(commit=False)
+        user.username = self.cleaned_data["email"]
+        user.email = self.cleaned_data["email"]
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+        return user
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
