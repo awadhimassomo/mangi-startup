@@ -240,7 +240,7 @@
         </thead>
         <tbody>
             {% for opp in opportunities %}
-            <tr>
+            <tr class="opp-row" data-edit-url="{% url 'posted_opportunity_edit' opp.pk %}" title="Double-click to edit">
                 <td>
                     <div>
                         <a href="{{ opp.get_absolute_url }}" style="font-weight:600;color:var(--accent);">{{ opp.title }}</a>
@@ -320,4 +320,13 @@
     {% endif %}
 </div>
 
+<style>.opp-row { cursor:pointer; } .opp-row:hover { background:#fff7f8; }</style>
+<script>
+document.querySelectorAll("tr.opp-row").forEach(function (row) {
+    row.addEventListener("dblclick", function (e) {
+        if (e.target.closest("a, button, form, input, select, label")) return;
+        window.location.href = row.dataset.editUrl;
+    });
+});
+</script>
 {% endblock %}
