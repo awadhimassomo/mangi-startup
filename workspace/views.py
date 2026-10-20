@@ -1,10 +1,8 @@
 import calendar as cal_module
-import datetime
 import csv
 import json
 import logging
 from decimal import Decimal
-from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -16,8 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .source_watch import register_source_from_link, scan_source
-from .ai_pipeline import extract_opportunity_from_image, assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
+from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
     BudgetPlanForm,
@@ -61,8 +58,6 @@ from .models import (
     Notification,
     OpportunityStageHistory,
     AgentRun,
-    DiscoveredOpportunity,
-    OpportunitySource,
     PostedOpportunity,
     Startup,
     StartupDocument,
@@ -98,20 +93,8 @@ def signup_view(request):
     form = SignUpForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        startup = Startup.objects.create(
-            name=form.cleaned_data["company_name"],
-            country="",
-            contact_email=user.email,
-        )
-        StartupMember.objects.create(
-            startup=startup, user=user, role=StartupMember.Role.STARTUP_ADMIN, is_active=True
-        )
         login(request, user)
-        messages.success(
-            request,
-            "Welcome! Your workspace is ready. Complete your profile whenever you like for better matches.",
-        )
-        return redirect("dashboard")
+        return redirect("onboarding")
     return render(request, "registration/signup.html", {"form": form, "auth_form": AuthenticationForm()})
 
 
@@ -1234,7 +1217,6 @@ def posted_opportunity_list(request):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
-    PostedOpportunity.purge_expired()
     qs = PostedOpportunity.objects.filter(
         review_status=PostedOpportunity.ReviewStatus.APPROVED
     )
@@ -1251,8 +1233,6 @@ def posted_opportunity_list(request):
         startup.opportunities.filter(source_posted_opportunity__isnull=False)
         .values_list("source_posted_opportunity_id", flat=True)
     )
-    # Already-applied opportunities sink to the bottom (stable sort keeps featured/newest order)
-    qs = sorted(qs, key=lambda o: o.pk in pipeline_source_ids)
     return render(request, "workspace/posted_opportunity_list.html", {
         "opportunities": qs,
         "type_choices": PostedOpportunity.OpportunityType.choices,
@@ -1268,22 +1248,16 @@ def posted_opportunity_list(request):
 
 @login_required
 def posted_opportunity_detail(request, pk):
-    if request.user.is_staff:
-        # Staff review any opportunity (including pending ones) without needing a startup workspace.
-        opp = get_object_or_404(PostedOpportunity, pk=pk)
-        startup = get_current_startup(request.user)
-        membership = get_current_membership(request.user)
-    else:
-        startup, membership, redirect_response = require_startup_access(request)
-        if redirect_response:
-            return redirect_response
-        opp = get_object_or_404(
-            PostedOpportunity,
-            pk=pk,
-            review_status=PostedOpportunity.ReviewStatus.APPROVED,
-        )
-    pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first() if startup else None
-    fit_assessment = assess_posted_opportunity_fit(startup, opp) if startup else None
+    startup, membership, redirect_response = require_startup_access(request)
+    if redirect_response:
+        return redirect_response
+    opp = get_object_or_404(
+        PostedOpportunity,
+        pk=pk,
+        review_status=PostedOpportunity.ReviewStatus.APPROVED,
+    )
+    pipeline_opportunity = startup.opportunities.filter(source_posted_opportunity=opp).first()
+    fit_assessment = assess_posted_opportunity_fit(startup, opp)
     return render(request, "workspace/posted_opportunity_detail.html", {
         "opp": opp,
         "membership": membership,
@@ -1329,122 +1303,17 @@ def posted_opportunity_add_to_pipeline(request, pk):
 def posted_opportunity_create(request):
     if not request.user.is_staff:
         return HttpResponseForbidden("Only Mangi staff can post opportunities.")
-    discovery = None
-    initial = {}
-    discovered_id = request.GET.get("discovered") or request.POST.get("discovered")
-    if discovered_id:
-        discovery = DiscoveredOpportunity.objects.filter(pk=discovered_id).first()
-        if discovery:
-            initial = {k: v for k, v in discovery.data.items() if v != ""}
-    form = PostedOpportunityForm(request.POST or None, request.FILES or None, initial=initial)
+    form = PostedOpportunityForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         opp = form.save(commit=False)
         opp.posted_by = request.user
         opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
         opp.save()
-        register_source_from_link(opp.application_link, request.user)
-        if discovery:
-            discovery.status = DiscoveredOpportunity.Status.POSTED
-            discovery.save(update_fields=["status"])
         messages.success(request, f"Opportunity '{opp.title}' posted.")
         return redirect("ops_dashboard")
     return render(request, "workspace/posted_opportunity_form.html", {
-        "form": form, "action": "Post new opportunity", "discovery": discovery,
+        "form": form, "action": "Post new opportunity",
     })
-
-
-@login_required
-def posted_opportunity_extract(request):
-    """Staff-only: read an uploaded poster with AI and return form values as JSON."""
-    if not request.user.is_staff:
-        return JsonResponse({"error": "Only Mangi staff can do this."}, status=403)
-    image = request.FILES.get("image")
-    if request.method != "POST" or not image:
-        return JsonResponse({"error": "Upload an image first."}, status=400)
-    if image.content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
-        return JsonResponse({"error": "Use a JPG, PNG, GIF or WebP image."}, status=400)
-    if image.size > 5 * 1024 * 1024:
-        return JsonResponse({"error": "Image is larger than 5 MB."}, status=400)
-    try:
-        data = extract_opportunity_from_image(image.read(), image.content_type)
-    except Exception as exc:  # noqa: BLE001
-        return JsonResponse({"error": f"Could not read the image: {exc}"}, status=502)
-    return JsonResponse({"data": data})
-
-
-def _opportunity_values_from_extracted(data):
-    """Turn raw AI strings into safe PostedOpportunity field values."""
-    values = {
-        "title": (data.get("title") or "Untitled opportunity (from screenshot)")[:255],
-        "funder_name": (data.get("funder_name") or "Unknown funder")[:255],
-        "opportunity_type": data.get("opportunity_type") or PostedOpportunity.OpportunityType.OTHER,
-        "short_description": data.get("short_description", ""),
-        "eligibility": data.get("eligibility", ""),
-        "currency": (data.get("currency") or "USD")[:10],
-        "geographic_focus": data.get("geographic_focus", "")[:255],
-        "sector_focus": data.get("sector_focus", "")[:255],
-        "tags": data.get("tags", "")[:255],
-    }
-    link = data.get("application_link", "").strip()
-    if link.startswith(("http://", "https://")) and len(link) <= 200:
-        values["application_link"] = link
-    for field in ("amount_min", "amount_max"):
-        try:
-            if data.get(field):
-                values[field] = Decimal(data[field].replace(",", ""))
-        except ArithmeticError:
-            pass
-    try:
-        if data.get("deadline"):
-            values["deadline"] = datetime.date.fromisoformat(data["deadline"])
-    except ValueError:
-        pass
-    return values
-
-
-@login_required
-def ops_quick_post(request):
-    """Staff: upload one or more screenshots; AI creates a draft for each, ready to review."""
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can post opportunities.")
-    if request.method == "POST":
-        created, errors = [], []
-        for image in request.FILES.getlist("images"):
-            if image.content_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
-                errors.append(f"{image.name}: not a JPG, PNG, GIF or WebP image.")
-                continue
-            if image.size > 15 * 1024 * 1024:
-                errors.append(f"{image.name}: larger than 15 MB.")
-                continue
-            try:
-                data = extract_opportunity_from_image(image.read(), image.content_type)
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{image.name}: could not read it ({exc}).")
-                continue
-            image.seek(0)
-            opp = PostedOpportunity.objects.create(
-                posted_by=request.user,
-                review_status=PostedOpportunity.ReviewStatus.PENDING,
-                status=PostedOpportunity.Status.OPEN,
-                poster_image=image,
-                **_opportunity_values_from_extracted(data),
-            )
-            created.append(opp)
-        for error in errors:
-            messages.error(request, error)
-        if len(created) == 1:
-            messages.success(request, "Details filled in. Check them, then tap Save & publish.")
-            return redirect("posted_opportunity_edit", pk=created[0].pk)
-        if created:
-            messages.success(request, f"{len(created)} drafts created. Open each one to check and publish.")
-            return redirect("ops_quick_post")
-        if not errors:
-            messages.error(request, "Choose at least one image.")
-        return redirect("ops_quick_post")
-    drafts = PostedOpportunity.objects.filter(
-        review_status=PostedOpportunity.ReviewStatus.PENDING, posted_by=request.user
-    )[:20]
-    return render(request, "workspace/ops_quick_post.html", {"drafts": drafts})
 
 
 @login_required
@@ -1454,12 +1323,8 @@ def posted_opportunity_edit(request, pk):
     opp = get_object_or_404(PostedOpportunity, pk=pk)
     form = PostedOpportunityForm(request.POST or None, request.FILES or None, instance=opp)
     if request.method == "POST" and form.is_valid():
-        opp = form.save(commit=False)
-        if "publish" in request.POST:
-            opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
-            register_source_from_link(opp.application_link, request.user)
-        opp.save()
-        messages.success(request, "Opportunity published." if "publish" in request.POST else "Opportunity updated.")
+        form.save()
+        messages.success(request, "Opportunity updated.")
         return redirect("posted_opportunity_detail", pk=opp.pk)
     return render(request, "workspace/posted_opportunity_form.html", {
         "form": form, "action": "Edit opportunity", "opp": opp,
@@ -1563,84 +1428,7 @@ def ops_dashboard(request):
         "total_pipeline_from_board": total_pipeline_from_board,
         "last_run": last_run,
         "recent_runs": recent_runs,
-        "pending_discoveries": DiscoveredOpportunity.objects.filter(
-            status=DiscoveredOpportunity.Status.PENDING
-        ).count(),
     })
-
-
-@login_required
-def ops_sources(request):
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
-    return render(request, "workspace/ops_sources.html", {
-        "sources": OpportunitySource.objects.all(),
-        "pending": DiscoveredOpportunity.objects.filter(
-            status=DiscoveredOpportunity.Status.PENDING
-        ).select_related("source"),
-    })
-
-
-@login_required
-def ops_scan_all(request):
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can scan sites.")
-    if request.method == "POST":
-        total, failed = 0, 0
-        for source in OpportunitySource.objects.filter(is_active=True):
-            total += len(scan_source(source))
-            failed += bool(source.last_error)
-        msg = f"Scan finished: {total} new opportunities found."
-        if failed:
-            msg += f" {failed} site(s) had errors, see Watched Sites."
-        messages.success(request, msg)
-    return redirect("ops_sources")
-
-
-@login_required
-def ops_source_add(request):
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
-    if request.method == "POST":
-        url = request.POST.get("url", "").strip()
-        if url.startswith(("http://", "https://")):
-            source, created = OpportunitySource.objects.get_or_create(
-                url=url, defaults={"name": urlparse(url).netloc, "added_by": request.user}
-            )
-            messages.success(request, "Website added." if created else "Already watching that website.")
-        else:
-            messages.error(request, "Enter a full web address starting with https://")
-    return redirect("ops_sources")
-
-
-@login_required
-def ops_source_action(request, pk, action):
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can manage watched sites.")
-    source = get_object_or_404(OpportunitySource, pk=pk)
-    if request.method == "POST":
-        if action == "delete":
-            source.delete()
-            messages.success(request, "Stopped watching that website.")
-        elif action == "toggle":
-            source.is_active = not source.is_active
-            source.save(update_fields=["is_active"])
-        elif action == "scan":
-            new = scan_source(source)
-            if source.last_error:
-                messages.error(request, f"Check failed: {source.last_error}")
-            else:
-                messages.success(request, f"Checked {source}: {len(new)} new opportunities found.")
-    return redirect("ops_sources")
-
-
-@login_required
-def ops_discovery_dismiss(request, pk):
-    if not request.user.is_staff:
-        return HttpResponseForbidden("Only Mangi staff can do this.")
-    if request.method == "POST":
-        DiscoveredOpportunity.objects.filter(pk=pk).update(status=DiscoveredOpportunity.Status.DISMISSED)
-    return redirect("ops_sources")
 
 
 @login_required
