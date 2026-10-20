@@ -11,8 +11,14 @@
 </style>
 
 <div style="max-width:900px;">
+    <div class="src-card" style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <span>New finds from watched websites now go to the <strong>Review queue</strong>, together with the scraper and screenshots.</span>
+        <a class="button button-sm" href="{% url 'ops_review' %}">Open Review queue{% if pending_review_count %} ({{ pending_review_count }}){% endif %} →</a>
+    </div>
+
+    {% if pending %}
     <div class="src-card">
-        <h3>Found by the watcher — waiting for your review ({{ pending|length }})</h3>
+        <h3>Older finds — waiting for your review ({{ pending|length }})</h3>
         {% for d in pending %}
         <div class="src-row">
             <div>
@@ -26,10 +32,9 @@
                 </form>
             </div>
         </div>
-        {% empty %}
-        <p class="muted small">Nothing new yet. New finds will show up here.</p>
         {% endfor %}
     </div>
+    {% endif %}
 
     <div class="src-card">
         <h3>Websites being watched ({{ sources|length }})</h3>

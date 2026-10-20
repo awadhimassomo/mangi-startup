@@ -23,10 +23,10 @@ class Command(BaseCommand):
                 .exclude(email="").values_list("email", flat=True)
             )
             if emails:
-                lines = "\n".join(f"- {d.title} ({d.source})" for d in found)
+                lines = "\n".join(f"- {d.title} ({d.funder_name})" for d in found)
                 send_mail(
                     f"{len(found)} new funding opportunities found",
-                    f"The watcher found new opportunities waiting for your review:\n\n{lines}",
+                    f"New opportunities are waiting in the Review queue:\n\n{lines}",
                     getattr(settings, "DEFAULT_FROM_EMAIL", None),
                     emails,
                     fail_silently=True,

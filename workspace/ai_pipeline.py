@@ -253,8 +253,40 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 EXTRACT_FIELDS = (
     "title", "funder_name", "opportunity_type", "short_description", "eligibility",
     "amount_min", "amount_max", "currency", "deadline", "application_link",
-    "geographic_focus", "sector_focus", "tags",
+    "geographic_focus", "sector_focus", "tags", "audience",
 )
+
+AUDIENCE_RULE = (
+    " audience must be 'organisation' if registered organisations, NGOs, companies, startups or founders "
+    "building a venture can apply; 'individual' if ONLY individual people can apply (students, researchers, "
+    "artists, job seekers, personal scholarships/fellowships/internships); or 'both'."
+)
+
+INDIVIDUAL_TERMS = (
+    "scholarship", "bursary", "internship", "vacancy", "job opening", "research fellow", "fellows program",
+    "postdoc", "phd", "master's", "masters degree", "undergraduate", "postgraduate", "student",
+    "individual applicants", "individuals only", "for individuals", "open to individuals", "artist residency",
+)
+ORGANISATION_TERMS = (
+    "startup", "start-up", "ngo", "non-profit", "nonprofit", "organisation", "organization", "company",
+    "companies", "enterprise", "sme", "business", "civil society", "social venture", "cooperative",
+    "founder", "entrepreneur",
+)
+
+
+def looks_individual_only(title, text=""):
+    """Cheap check: individual-type wording and nothing that mentions organisations/startups."""
+    combined = f"{title} {text}".lower()
+    if any(t in combined for t in ORGANISATION_TERMS):
+        return False
+    return any(t in combined for t in INDIVIDUAL_TERMS)
+
+
+def is_individual_only(data):
+    """True if the AI said only individuals can apply, or the wording clearly says so."""
+    if (data.get("audience") or "").strip().lower() == "individual":
+        return True
+    return looks_individual_only(data.get("title", ""), data.get("short_description", "") + " " + data.get("eligibility", ""))
 
 
 def ask_openai_json(prompt, image_bytes=None, media_type="image/jpeg", max_tokens=1500):
@@ -309,7 +341,8 @@ def extract_opportunity_from_image(image_bytes, media_type):
         "currency is a 3-letter code (default USD). tags is comma-separated lowercase keywords. "
         "short_description is 2-4 sentences summarising the opportunity. "
         "application_link is any website or URL printed in the image (add https:// if missing). "
-        "Use an empty string for anything not present in the image; never invent details."
+        + AUDIENCE_RULE +
+        " Use an empty string for anything not present in the image; never invent details."
     )
     data = ask_openai_json(prompt, image_bytes, media_type)
     result = {k: ("" if data.get(k) is None else str(data.get(k))) for k in EXTRACT_FIELDS}
@@ -332,7 +365,7 @@ def extract_opportunity_from_text(text, url, links):
         "funder_name is the organisation actually offering the money, not the website that posted the article. "
         "short_description is 2-4 sentences. eligibility lists who can apply. "
         "application_link must be copied exactly from the candidate links below (the funder's own page where one "
-        "applies), or empty. Use empty strings for anything not stated; never invent details.\n\n"
+        "applies), or empty." + AUDIENCE_RULE + " Use empty strings for anything not stated; never invent details.\n\n"
         f"Candidate links:\n{link_lines}\n\nArticle:\n{text[:20000]}"
     )
     data = ask_openai_json(prompt)

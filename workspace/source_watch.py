@@ -9,8 +9,10 @@ from urllib.parse import urljoin, urlparse
 
 from django.utils import timezone
 
-from .ai_pipeline import EXTRACT_FIELDS, ask_openai_json
-from .models import DiscoveredOpportunity, OpportunitySource, PostedOpportunity
+from .ai_pipeline import (
+    AUDIENCE_RULE, EXTRACT_FIELDS, ask_openai_json, is_individual_only, opportunity_values_from_extracted,
+)
+from .models import OpportunitySource, PostedOpportunity
 
 MAX_BYTES = 2_000_000
 MAX_TEXT_CHARS = 25_000
@@ -60,7 +62,8 @@ def _find_opportunities(page_text, url):
         "application_link must be the most specific link for that opportunity from the page. "
         "deadline is YYYY-MM-DD or empty; amounts are plain numbers or empty. "
         "Use empty strings for anything not stated; never invent details. "
-        "Use an empty list if there are none.\n\n" + page_text[:MAX_TEXT_CHARS]
+        + AUDIENCE_RULE +
+        " Use an empty list if there are none.\n\n" + page_text[:MAX_TEXT_CHARS]
     )
     data = ask_openai_json(prompt, max_tokens=4000)
     items = data.get("opportunities", [])
@@ -72,7 +75,7 @@ def _key_for(item):
 
 
 def scan_source(source):
-    """Check one source. Returns the list of newly created DiscoveredOpportunity rows."""
+    """Check one source. New finds become pending posts in the Review queue; returns them."""
     new = []
     source.last_checked_at = timezone.now()
     try:
@@ -92,14 +95,18 @@ def scan_source(source):
                     continue
                 if item["application_link"] in known_links or item["title"].lower() in known_titles:
                     continue
-                key = _key_for(item)
-                if not key:
+                if is_individual_only(item):   # Mangi only posts for organisations, NGOs and startups
                     continue
-                obj, created = DiscoveredOpportunity.objects.get_or_create(
-                    source=source, key=key, defaults={"data": item}
+                values = opportunity_values_from_extracted(item)
+                opp = PostedOpportunity.objects.create(
+                    posted_by=source.added_by,
+                    review_status=PostedOpportunity.ReviewStatus.PENDING,
+                    status=PostedOpportunity.Status.OPEN,
+                    **values,
                 )
-                if created:
-                    new.append(obj)
+                known_titles.add(opp.title.lower())
+                known_links.add(opp.application_link)
+                new.append(opp)
             source.last_content_hash = digest
         source.last_error = ""
     except Exception as exc:  # noqa: BLE001

@@ -1,0 +1,70 @@
+{% extends "workspace/ops_base.html" %}
+{% load humanize %}
+{% block title %}Review queue — Mangi{% endblock %}
+{% block content %}
+<style>
+.rv-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.rv-card { display:flex; gap:1rem; background:#fff; border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:0.85rem; }
+.rv-thumb { flex:0 0 96px; width:96px; height:96px; border-radius:8px; object-fit:cover; background:#f3f4f6; border:1px solid var(--border); }
+.rv-body { flex:1; min-width:0; }
+.rv-title { font-weight:700; color:var(--accent); text-decoration:none; }
+.rv-meta { display:flex; flex-wrap:wrap; gap:0.35rem 0.9rem; margin:0.35rem 0; font-size:0.82rem; color:var(--muted); }
+.rv-desc { font-size:0.84rem; margin:0.25rem 0 0.6rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.rv-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.rv-actions form { margin:0; }
+.rv-warn { color:#b45309; font-weight:600; }
+@media (max-width:600px) { .rv-card { flex-direction:column; } .rv-thumb { width:100%; height:160px; flex-basis:auto; } }
+</style>
+
+<div class="rv-head">
+    <div>
+        <h2 style="margin:0;">Review queue</h2>
+        <p class="muted small" style="margin:0.2rem 0 0;">Everything found by the scraper, watched websites and screenshots waits here. Approve to publish, reject to discard.</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="{% url 'ops_quick_post' %}" class="button button-secondary button-sm">📸 Quick post</a>
+        <a href="{% url 'ops_sources' %}" class="button button-secondary button-sm">🌐 Watched sites</a>
+    </div>
+</div>
+
+{% for opp in pending %}
+<div class="rv-card opp-row" data-edit-url="{% url 'posted_opportunity_edit' opp.pk %}?from=review" title="Double-click to edit">
+    {% if opp.poster_image %}<img class="rv-thumb zoomable" src="{{ opp.poster_image.url }}" alt="">{% endif %}
+    <div class="rv-body">
+        <a class="rv-title" href="{% url 'posted_opportunity_edit' opp.pk %}?from=review">{{ opp.title }}</a>
+        <div class="rv-meta">
+            <span>{{ opp.funder_name }}</span>
+            <span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span>
+            <span>
+                {% if opp.amount_min or opp.amount_max %}{{ opp.currency }}
+                    {% if opp.amount_min %}{{ opp.amount_min|floatformat:0|intcomma }}{% endif %}{% if opp.amount_min and opp.amount_max %} – {% endif %}{% if opp.amount_max %}{{ opp.amount_max|floatformat:0|intcomma }}{% endif %}
+                {% else %}<span class="rv-warn">No amount</span>{% endif %}
+            </span>
+            <span>{% if opp.deadline %}Due {{ opp.deadline }}{% else %}<span class="rv-warn">No deadline</span>{% endif %}</span>
+            {% if opp.application_link %}<a href="{{ opp.application_link }}" target="_blank" rel="noopener">Apply link ↗</a>{% else %}<span class="rv-warn">No apply link</span>{% endif %}
+        </div>
+        {% if opp.short_description %}<p class="rv-desc">{{ opp.short_description }}</p>{% endif %}
+        <div class="rv-actions">
+            <a class="button button-secondary button-sm" href="{% url 'posted_opportunity_edit' opp.pk %}?from=review">Review &amp; edit</a>
+            <form method="post" action="{% url 'ops_review_action' opp.pk 'approve' %}">{% csrf_token %}<button class="button button-sm">✅ Approve</button></form>
+            <form method="post" action="{% url 'ops_review_action' opp.pk 'reject' %}" onsubmit="return confirm('Reject this opportunity?');">{% csrf_token %}
+                <button class="button button-sm" style="background:#fee2e2;color:#991b1b;border:none;">Reject</button></form>
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="rv-card" style="justify-content:center;text-align:center;padding:2.5rem 1rem;">
+    <div><p style="font-size:1.05rem;font-weight:700;margin:0 0 0.35rem;">🎉 Nothing waiting for review</p>
+    <p class="muted small" style="margin:0;">New finds from the scraper, watched sites and screenshots will appear here.</p></div>
+</div>
+{% endfor %}
+
+<script>
+document.querySelectorAll(".rv-card.opp-row").forEach(function (row) {
+    row.addEventListener("dblclick", function (e) {
+        if (e.target.closest("a, button, form, img")) return;
+        window.location.href = row.dataset.editUrl;
+    });
+});
+</script>
+{% endblock %}

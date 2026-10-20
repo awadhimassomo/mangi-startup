@@ -8,6 +8,7 @@ import urllib.parse
 import requests
 
 from .ai_pipeline import (
+    AUDIENCE_RULE,
     EXTRACT_FIELDS,
     OPENAI_MODEL,
     PostedOpportunity,
@@ -59,7 +60,7 @@ def _web_search_openai(data):
         f"Reply with ONLY a JSON object with keys: {', '.join(EXTRACT_FIELDS)}. "
         f"opportunity_type must be one of: {types}. deadline is YYYY-MM-DD or empty. "
         "amount_min/amount_max are plain numbers per award or empty. application_link is the official "
-        "application or call page you found. Only use facts from the official source; use empty strings otherwise."
+        "application or call page you found." + AUDIENCE_RULE + " Only use facts from the official source; use empty strings otherwise."
     )
     response = OpenAI(api_key=api_key).responses.create(
         model=OPENAI_MODEL, tools=[{"type": "web_search_preview"}], input=prompt

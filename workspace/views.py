@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .source_watch import register_source_from_link, scan_source
 from .opportunity_research import read_screenshot
-from .ai_pipeline import opportunity_values_from_extracted
+from .ai_pipeline import is_individual_only, opportunity_values_from_extracted
 from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
@@ -1378,6 +1378,40 @@ def posted_opportunity_extract(request):
     return JsonResponse({"data": data})
 
 
+def _approve_opportunity(opp, user):
+    """Publish a pending opportunity: approve, watch its funder's site, match it to startups."""
+    opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
+    opp.save(update_fields=["review_status", "updated_at"])
+    register_source_from_link(opp.application_link, user)
+    if opp.status == PostedOpportunity.Status.OPEN:
+        run_matching_agent(trigger="manual", triggered_by=user, target_opportunity=opp)
+
+
+@login_required
+def ops_review(request):
+    """The one place for everything waiting to be checked: scraper, watched sites and screenshots."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can review opportunities.")
+    pending = PostedOpportunity.objects.filter(review_status=PostedOpportunity.ReviewStatus.PENDING)
+    return render(request, "workspace/ops_review.html", {"pending": pending})
+
+
+@login_required
+def ops_review_action(request, pk, action):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Only Mangi staff can review opportunities.")
+    opp = get_object_or_404(PostedOpportunity, pk=pk)
+    if request.method == "POST":
+        if action == "approve":
+            _approve_opportunity(opp, request.user)
+            messages.success(request, f"'{opp.title}' published.")
+        elif action == "reject":
+            opp.review_status = PostedOpportunity.ReviewStatus.REJECTED
+            opp.save(update_fields=["review_status", "updated_at"])
+            messages.success(request, f"'{opp.title}' rejected.")
+    return redirect("ops_review")
+
+
 @login_required
 def ops_quick_post(request):
     """Staff: upload one or more screenshots; AI creates a draft for each, ready to review."""
@@ -1396,6 +1430,12 @@ def ops_quick_post(request):
                 data = read_screenshot(image.read(), image.content_type)
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{image.name}: could not read it ({exc}).")
+                continue
+            if is_individual_only(data):
+                errors.append(
+                    f"{image.name}: skipped, \"{data.get('title') or 'this post'}\" looks like it is for "
+                    "individuals only. Mangi posts for organisations, NGOs and startups."
+                )
                 continue
             image.seek(0)
             opp = PostedOpportunity.objects.create(
@@ -1417,10 +1457,7 @@ def ops_quick_post(request):
         if not errors:
             messages.error(request, "Choose at least one image.")
         return redirect("ops_quick_post")
-    drafts = PostedOpportunity.objects.filter(
-        review_status=PostedOpportunity.ReviewStatus.PENDING, posted_by=request.user
-    )[:20]
-    return render(request, "workspace/ops_quick_post.html", {"drafts": drafts})
+    return render(request, "workspace/ops_quick_post.html", {})
 
 
 @login_required
@@ -1430,14 +1467,14 @@ def posted_opportunity_edit(request, pk):
     opp = get_object_or_404(PostedOpportunity, pk=pk)
     form = PostedOpportunityForm(request.POST or None, request.FILES or None, instance=opp)
     if request.method == "POST" and form.is_valid():
-        opp = form.save(commit=False)
+        opp = form.save()
         if "publish" in request.POST:
-            opp.review_status = PostedOpportunity.ReviewStatus.APPROVED
-            register_source_from_link(opp.application_link, request.user)
-        opp.save()
+            _approve_opportunity(opp, request.user)
         messages.success(request, "Opportunity published." if "publish" in request.POST else "Opportunity updated.")
         if request.GET.get("from") == "quick":
             return redirect("ops_quick_post")  # keep going: add the next screenshot
+        if request.GET.get("from") == "review":
+            return redirect("ops_review")
         if not get_current_startup(request.user):
             return redirect("ops_dashboard")  # admins have no workspace; keep them in the admin area
         return redirect("posted_opportunity_detail", pk=opp.pk)
@@ -1574,6 +1611,8 @@ def ops_scan_all(request):
         if failed:
             msg += f" {failed} site(s) had errors, see Watched Sites."
         messages.success(request, msg)
+        if total:
+            return redirect("ops_review")
     return redirect("ops_sources")
 
 
@@ -1696,6 +1735,8 @@ def ops_run_scraper(request):
         messages.info(request, f"Scraper Agent finished: {summary}. No new opportunities found.")
     for error in stats["errors"][:3]:
         messages.error(request, error)
+    if stats["created"] > 0:
+        return redirect("ops_review")
 
     return redirect("ops_dashboard")
 

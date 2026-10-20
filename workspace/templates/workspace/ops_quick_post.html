@@ -23,7 +23,7 @@
 
 <div class="qp-card">
     <h2 style="margin:0 0 0.35rem;">📸 Quick post from a screenshot</h2>
-    <p class="muted small" style="margin:0 0 1rem;">Screenshot an opportunity on Instagram or LinkedIn, upload it here, and AI fills in the details. You check them and tap publish.</p>
+    <p class="muted small" style="margin:0 0 1rem;">Screenshot an opportunity on Instagram or LinkedIn, upload it here, and AI fills in the details. They go to the Review queue, or open straight into the form when you pick one.</p>
     <form method="post" enctype="multipart/form-data" id="qp-form">
         {% csrf_token %}
         <label class="qp-drop" for="qp-input">
@@ -36,15 +36,10 @@
     </form>
 </div>
 
-{% if drafts %}
-<div class="qp-card">
-    <h3 style="margin:0 0 0.5rem;font-size:1rem;">Your drafts waiting to be published</h3>
-    {% for d in drafts %}
-    <div class="qp-row">
-        <span><strong>{{ d.title }}</strong><br><span class="muted small">{{ d.funder_name }}{% if d.deadline %} · Due {{ d.deadline }}{% endif %}</span></span>
-        <a class="button button-sm" href="{% url 'posted_opportunity_edit' d.pk %}?from=quick">Review</a>
-    </div>
-    {% endfor %}
+{% if pending_review_count %}
+<div class="qp-card" style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+    <span><strong>{{ pending_review_count }}</strong> waiting for review</span>
+    <a class="button button-sm" href="{% url 'ops_review' %}">Open Review queue →</a>
 </div>
 {% endif %}
 

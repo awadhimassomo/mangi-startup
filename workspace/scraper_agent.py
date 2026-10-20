@@ -180,6 +180,12 @@ def is_relevant_for_startup_or_ngo(title, content):
     """
     combined = (title + " " + content).lower()
 
+    # 0. Mangi posts for organisations, NGOs and startups, never for individuals
+    from .ai_pipeline import looks_individual_only
+
+    if looks_individual_only(title, content[:1500]):
+        return False, "Looks like an opportunity for individuals only"
+
     # 1. Check for strictly excluded academic terms
     for term in EXCLUDED_ACADEMIC_TERMS:
         if term in combined:
@@ -494,6 +500,8 @@ def enrich_payload(payload, article_url):
     except Exception as exc:  # noqa: BLE001
         logger.info("AI enrichment skipped for %s: %s", article_url, exc)
         ai = None
+    if ai and (ai.get("audience") or "").strip().lower() == "individual":
+        return None   # only individuals can apply: not for Mangi
     if ai:
         for field in ("funder_name", "short_description", "eligibility", "geographic_focus", "sector_focus", "tags"):
             if ai.get(field):
@@ -638,7 +646,7 @@ def scrape_listing_page(url, max_items=15):
     AI picks the items out, then each item's own page is opened for the details.
     Returns a list of payloads, or [] if the page is not a listing / no AI key.
     """
-    from .ai_pipeline import opportunity_values_from_extracted
+    from .ai_pipeline import is_individual_only, opportunity_values_from_extracted
     from .opportunity_research import research_opportunity
     from .source_watch import _find_opportunities, fetch_page_text
 
@@ -657,6 +665,8 @@ def scrape_listing_page(url, max_items=15):
         if not isinstance(item, dict) or not item.get("title"):
             continue
         data = {k: ("" if v is None else str(v)) for k, v in item.items()}
+        if is_individual_only(data):
+            continue
         if data.get("deadline") and data["deadline"] < today:
             continue
         if PostedOpportunity.objects.filter(title__iexact=data["title"].strip()).exists():
@@ -746,6 +756,9 @@ def run_opportunity_scraper(acting_user=None, custom_urls=None, max_items_per_fe
                     stats["skipped_duplicates"] += 1
                     continue
                 payload = enrich_payload(payload, item["link"])
+                if payload is None:
+                    stats["skipped_not_target"] += 1
+                    continue
                 if source.get("default_type"):
                     payload["opportunity_type"] = source["default_type"]
 

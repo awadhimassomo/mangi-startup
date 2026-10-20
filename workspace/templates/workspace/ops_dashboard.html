@@ -18,9 +18,9 @@
     </div>
 </div>
 
-{% if pending_discoveries %}
-<a href="{% url 'ops_sources' %}" style="display:block;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.85rem 1.25rem;border-radius:10px;margin-bottom:1.25rem;font-weight:700;text-decoration:none;">
-    🔔 {{ pending_discoveries }} new opportunit{{ pending_discoveries|pluralize:"y,ies" }} found on watched websites — review now →
+{% if pending_review_count %}
+<a href="{% url 'ops_review' %}" style="display:block;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.85rem 1.25rem;border-radius:10px;margin-bottom:1.25rem;font-weight:700;text-decoration:none;">
+    🔔 {{ pending_review_count }} opportunit{{ pending_review_count|pluralize:"y,ies" }} waiting for review — open the Review queue →
 </a>
 {% endif %}
 
@@ -221,20 +221,28 @@
     </form>
 </div>
 
-<div class="panel">
+<style>
+.ops-table-wrap { overflow-x:auto; }
+.ops-table-wrap .data-table { font-size:0.85rem; }
+.ops-table-wrap .data-table th, .ops-table-wrap .data-table td { padding:0.55rem 0.6rem; }
+.ops-table-wrap .col-funder { max-width:170px; font-size:0.8rem; }
+.ops-table-wrap .col-actions { white-space:nowrap; }
+@media (max-width:1500px) { .hide-lg { display:none; } }
+</style>
+<div class="panel ops-table-wrap">
     {% if opportunities %}
     <table class="data-table">
         <thead>
             <tr>
                 <th>Title</th>
-                <th>Funder</th>
+                <th class="col-funder">Funder</th>
                 <th>Type</th>
                 <th>Admin review</th>
                 <th>Status</th>
                 <th>Amount</th>
                 <th>Deadline</th>
-                <th>Featured</th>
-                <th>Pipeline</th>
+                <th class="hide-lg">Featured</th>
+                <th class="hide-lg">Pipeline</th>
                 <th></th>
             </tr>
         </thead>
@@ -247,7 +255,7 @@
                         {% if opp.sector_focus %}<p class="muted" style="margin:2px 0 0;font-size:0.73rem;">{{ opp.sector_focus }}</p>{% endif %}
                     </div>
                 </td>
-                <td><span style="font-size:0.85rem;">{{ opp.funder_name }}</span></td>
+                <td class="col-funder"><span>{{ opp.funder_name }}</span></td>
                 <td><span class="badge badge-type-{{ opp.opportunity_type }}">{{ opp.get_opportunity_type_display }}</span></td>
                 <td>
                     <form method="post" action="{% url 'ops_opportunity_toggle_status' opp.pk %}" style="display:inline;">
@@ -288,17 +296,17 @@
                     <span class="muted small">—</span>
                     {% endif %}
                 </td>
-                <td style="text-align:center;">
+                <td class="hide-lg" style="text-align:center;">
                     {% if opp.is_featured %}
                     <span style="color:#f59e0b;font-size:1rem;">⭐</span>
                     {% else %}
                     <span class="muted small">—</span>
                     {% endif %}
                 </td>
-                <td>
+                <td class="hide-lg">
                     <span class="muted small">{{ opp.pipeline_opportunities.count }} startup{{ opp.pipeline_opportunities.count|pluralize }}</span>
                 </td>
-                <td>
+                <td class="col-actions">
                     <div style="display:flex;gap:0.35rem;">
                         <a href="{% url 'posted_opportunity_edit' opp.pk %}" class="button button-secondary button-sm">Edit</a>
                         <a href="{% url 'posted_opportunity_delete' opp.pk %}" class="button button-sm" style="background:#fee2e2;color:#991b1b;border:none;">Delete</a>

@@ -68,6 +68,8 @@ urlpatterns = [
     path("board/<int:pk>/delete/", views.posted_opportunity_delete, name="posted_opportunity_delete"),
     # Superadmin Ops Dashboard
     path("ops/", views.ops_dashboard, name="ops_dashboard"),
+    path("ops/review/", views.ops_review, name="ops_review"),
+    path("ops/review/<int:pk>/<str:action>/", views.ops_review_action, name="ops_review_action"),
     path("ops/sources/", views.ops_sources, name="ops_sources"),
     path("ops/sources/scan-all/", views.ops_scan_all, name="ops_scan_all"),
     path("ops/sources/add/", views.ops_source_add, name="ops_source_add"),

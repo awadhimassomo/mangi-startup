@@ -99,21 +99,23 @@ class SourceWatchTests(TestCase):
         self.user = get_user_model().objects.create_superuser("staff", "s@x.com", "pw")
         self.client.force_login(self.user)
 
-    def test_scan_finds_new_once_and_skips_expired(self):
+    def test_scan_creates_pending_posts_once_and_skips_expired_and_individual(self):
         from unittest import mock
         from . import source_watch as sw
-        from .models import DiscoveredOpportunity
+        from .models import PostedOpportunity
         src = sw.register_source_from_link("https://funder.org/apply/1", self.user)
         self.assertEqual(src.url, "https://funder.org/")
         found = [
-            {"title": "Grant A", "application_link": "https://funder.org/a", "deadline": "2999-01-01"},
+            {"title": "Grant A", "application_link": "https://funder.org/a", "deadline": "2999-01-01", "audience": "organisation"},
             {"title": "Old", "deadline": "2000-01-01"},
+            {"title": "Personal award", "audience": "individual"},
+            {"title": "MSc Scholarship for students"},
         ]
-        with mock.patch.object(sw, "fetch_page_text", side_effect=["v1", "v2"]), \
-                mock.patch.object(sw, "_find_opportunities", return_value=found):
+        with mock.patch.object(sw, "fetch_page_text", side_effect=["v1", "v2"]),                 mock.patch.object(sw, "_find_opportunities", return_value=found):
             self.assertEqual(len(sw.scan_source(src)), 1)
             self.assertEqual(len(sw.scan_source(src)), 0)
-        self.assertEqual(DiscoveredOpportunity.objects.count(), 1)
+        opp = PostedOpportunity.objects.get()
+        self.assertEqual((opp.title, opp.review_status), ("Grant A", "pending"))
 
     def test_pages_and_post_from_discovery(self):
         from .models import DiscoveredOpportunity, OpportunitySource, PostedOpportunity
@@ -449,3 +451,39 @@ class ListingScrapeTests(TestCase):
         self.assertEqual(stats["created"], 2)
         self.assertEqual(PostedOpportunity.objects.filter(review_status="pending").count(), 2)
         self.assertTrue(OpportunitySource.objects.filter(url="https://x.org/funding").exists())
+
+
+class ReviewQueueTests(TestCase):
+    def test_queue_lists_pending_and_approve_reject_work(self):
+        from .models import PostedOpportunity
+        staff = get_user_model().objects.create_superuser("boss5", "b5@x.com", "pw")
+        self.client.force_login(staff)
+        a = PostedOpportunity.objects.create(title="Alpha", funder_name="F", review_status="pending")
+        b = PostedOpportunity.objects.create(title="Beta", funder_name="F", review_status="pending")
+        resp = self.client.get("/ops/review/")
+        self.assertContains(resp, "Alpha"); self.assertContains(resp, "Beta")
+        for url in ("/ops/", "/ops/sources/", "/board/quick-post/"):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        self.client.post(f"/ops/review/{a.pk}/approve/")
+        self.client.post(f"/ops/review/{b.pk}/reject/")
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertEqual((a.review_status, b.review_status), ("approved", "rejected"))
+
+    def test_individual_filter_and_screenshot_skip(self):
+        from unittest import mock
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from .ai_pipeline import looks_individual_only, is_individual_only
+        from .models import PostedOpportunity
+        self.assertTrue(looks_individual_only("PhD Scholarship 2026", "for students"))
+        self.assertFalse(looks_individual_only("Startup Grant", "open to startups and students"))
+        self.assertTrue(is_individual_only({"audience": "individual", "title": "X"}))
+        staff = get_user_model().objects.create_superuser("boss6", "b6@x.com", "pw")
+        self.client.force_login(staff)
+        buf = io.BytesIO(); Image.new("RGB", (4, 4)).save(buf, "PNG")
+        img = SimpleUploadedFile("s.png", buf.getvalue(), content_type="image/png")
+        with mock.patch("workspace.views.read_screenshot", return_value={"title": "Fellowship", "audience": "individual"}):
+            resp = self.client.post("/board/quick-post/", {"images": img}, follow=True)
+        self.assertEqual(PostedOpportunity.objects.count(), 0)
+        self.assertContains(resp, "individuals only")

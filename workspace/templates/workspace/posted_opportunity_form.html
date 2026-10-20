@@ -66,7 +66,9 @@
                 }
                 const poster = document.getElementById("id_poster_image");
                 const dt = new DataTransfer(); dt.items.add(file); poster.files = dt.files;
-                status.textContent = "Done — review the fields below, then save.";
+                status.textContent = json.data.audience === "individual"
+                    ? "⚠ This looks like an opportunity for individuals only. Mangi posts for organisations, NGOs and startups. Check before saving."
+                    : "Done — review the fields below, then save.";
             } catch (e) { status.textContent = e.message; }
             this.disabled = false;
         });
@@ -232,7 +234,7 @@
             {% else %}
             <button type="submit" class="button">💾 Save opportunity</button>
             {% endif %}
-            <a href="{% if request.GET.from == 'quick' %}{% url 'ops_quick_post' %}{% else %}{% url 'ops_dashboard' %}{% endif %}" class="button button-secondary">Cancel</a>
+            <a href="{% if request.GET.from == 'quick' %}{% url 'ops_quick_post' %}{% elif request.GET.from == 'review' %}{% url 'ops_review' %}{% else %}{% url 'ops_dashboard' %}{% endif %}" class="button button-secondary">Cancel</a>
         </div>
     </form>
 </div>

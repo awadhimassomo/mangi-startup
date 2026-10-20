@@ -47,7 +47,7 @@
         .ops-footer { padding:1rem 1.25rem 0; border-top:1px solid var(--border); margin-top:auto; }
         .ops-footer a { font-size:0.8rem; color:var(--muted); text-decoration:none; }
         .ops-footer a:hover { color:var(--text); }
-        .ops-main { flex:1; overflow-y:auto; }
+        .ops-main { flex:1; min-width:0; overflow-y:auto; }
         .ops-topbar {
             display:flex; align-items:center; justify-content:space-between;
             padding:0.85rem 2rem; border-bottom:1px solid var(--border);
@@ -96,6 +96,11 @@
             <a href="{% url 'ops_dashboard' %}" class="{% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 Dashboard
+            </a>
+            <a href="{% url 'ops_review' %}" class="{% if request.resolver_match.url_name == 'ops_review' %}active{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Review queue
+                {% if pending_review_count %}<span style="margin-left:auto;background:#C72C41;color:#fff;border-radius:99px;padding:0 0.5rem;font-size:0.72rem;line-height:1.35rem;">{{ pending_review_count }}</span>{% endif %}
             </a>
             <a href="{% url 'ops_quick_post' %}" class="{% if request.resolver_match.url_name == 'ops_quick_post' %}active{% endif %}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg>
