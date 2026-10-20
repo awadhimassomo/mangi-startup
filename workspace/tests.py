@@ -429,3 +429,23 @@ class PosterLightboxTests(TestCase):
         self.assertContains(resp, 'class="zoomable"')
         self.assertContains(resp, 'id="lb"')
         opp.poster_image.delete(save=False)
+
+
+class ListingScrapeTests(TestCase):
+    def test_listing_page_creates_pending_posts_and_watches_url(self):
+        from unittest import mock
+        from . import scraper_agent as sa
+        from .models import OpportunitySource, PostedOpportunity
+        items = [
+            {"title": "Grant One", "funder_name": "FAO", "application_link": "https://x.org/1", "deadline": "2999-01-01"},
+            {"title": "Grant Two", "funder_name": "UNDP", "application_link": "https://x.org/2", "deadline": ""},
+            {"title": "Old One", "deadline": "2000-01-01"},
+        ]
+        with mock.patch.dict("os.environ", {"OPENAI_API_KEY": "x"}), \
+                mock.patch("workspace.source_watch.fetch_page_text", return_value="text [link: https://x.org/1]"), \
+                mock.patch("workspace.source_watch._find_opportunities", return_value=items), \
+                mock.patch("workspace.opportunity_research.research_opportunity", side_effect=lambda d: d):
+            stats = sa.run_opportunity_scraper(custom_urls=["https://x.org/funding"])
+        self.assertEqual(stats["created"], 2)
+        self.assertEqual(PostedOpportunity.objects.filter(review_status="pending").count(), 2)
+        self.assertTrue(OpportunitySource.objects.filter(url="https://x.org/funding").exists())

@@ -1,5 +1,7 @@
+import datetime
 import os
 from datetime import timedelta
+from decimal import Decimal
 
 from django.utils import timezone
 
@@ -338,3 +340,35 @@ def extract_opportunity_from_text(text, url, links):
     if result["opportunity_type"] not in PostedOpportunity.OpportunityType.values:
         result["opportunity_type"] = ""
     return result
+
+
+def opportunity_values_from_extracted(data):
+    """Turn raw AI strings into safe PostedOpportunity field values."""
+    values = {
+        "title": (data.get("title") or "Untitled opportunity (from screenshot)")[:255],
+        "funder_name": (data.get("funder_name") or "Unknown funder")[:255],
+        "opportunity_type": data.get("opportunity_type") or PostedOpportunity.OpportunityType.OTHER,
+        "short_description": data.get("short_description", ""),
+        "eligibility": data.get("eligibility", ""),
+        "currency": (data.get("currency") or "USD")[:10],
+        "geographic_focus": data.get("geographic_focus", "")[:255],
+        "sector_focus": data.get("sector_focus", "")[:255],
+        "tags": data.get("tags", "")[:255],
+    }
+    link = data.get("application_link", "").strip()
+    if link.startswith(("http://", "https://")) and len(link) <= 200:
+        values["application_link"] = link
+    for field in ("amount_min", "amount_max"):
+        try:
+            if data.get(field):
+                values[field] = Decimal(data[field].replace(",", ""))
+        except ArithmeticError:
+            pass
+    try:
+        if data.get("deadline"):
+            values["deadline"] = datetime.date.fromisoformat(data["deadline"])
+    except ValueError:
+        pass
+    return values
+
+

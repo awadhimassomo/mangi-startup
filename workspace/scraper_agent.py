@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import re
 import urllib.parse
 from decimal import Decimal
@@ -146,6 +147,20 @@ DISALLOWED_EXCLUSIVE_REGIONS = [
     "latin america only",
     "india only",
 ]
+
+
+def http_get(url, **kwargs):
+    """GET that also works on public sites with a broken/expired TLS certificate (read-only scraping)."""
+    kwargs.setdefault("headers", DEFAULT_HEADERS)
+    kwargs.setdefault("timeout", 20)
+    try:
+        return requests.get(url, **kwargs)
+    except requests.exceptions.SSLError:
+        logger.warning("Invalid TLS certificate for %s; retrying without verification.", url)
+        import urllib3
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        return requests.get(url, verify=False, **kwargs)
 
 
 def _clean_text(html_or_text):
@@ -417,7 +432,7 @@ SKIP_LINK_HOSTS = (
 
 def _fetch_article(url):
     """Returns (full_text, [(link_text, href), ...]) for an article page, ignoring ads/sidebars."""
-    response = requests.get(url, headers=DEFAULT_HEADERS, timeout=15)
+    response = http_get(url)
     if response.status_code != 200:
         return "", []
     soup = BeautifulSoup(response.content, "html.parser")
@@ -545,7 +560,7 @@ def ingest_opportunity(payload, posted_by=None):
 def fetch_rss_feed(feed_url, default_type=None):
     """Fetches an RSS/Atom feed and yields parsed raw items."""
     try:
-        response = requests.get(feed_url, headers=DEFAULT_HEADERS, timeout=15)
+        response = http_get(feed_url)
         if response.status_code != 200:
             logger.warning("Feed fetch failed (%s): %s", response.status_code, feed_url)
             return []
@@ -577,7 +592,7 @@ def fetch_rss_feed(feed_url, default_type=None):
 def scrape_webpage_opportunity(url):
     """Scrapes a single opportunity webpage/article directly."""
     try:
-        response = requests.get(url, headers=DEFAULT_HEADERS, timeout=15)
+        response = http_get(url)
         if response.status_code != 200:
             return None
 
@@ -593,6 +608,67 @@ def scrape_webpage_opportunity(url):
     except Exception as e:
         logger.error("Error scraping webpage %s: %s", url, e)
         return None
+
+
+def _watch_url(url, user=None):
+    """Keep watching a listing page the admin gave us."""
+    from .models import OpportunitySource
+
+    OpportunitySource.objects.get_or_create(
+        url=url, defaults={"name": urllib.parse.urlparse(url).netloc, "added_by": user}
+    )
+
+
+def _page_urls(url, html_links):
+    """The listing page plus up to 2 more result pages (?page=2, ?page=3) if it is paginated."""
+    base = urllib.parse.urlparse(url)
+    pages = {1: url}
+    for link in html_links:
+        parsed = urllib.parse.urlparse(link)
+        if parsed.netloc == base.netloc and parsed.path == base.path:
+            m = re.search(r"(?:^|&)page=(\d+)", parsed.query)
+            if m and 2 <= int(m.group(1)) <= 3:
+                pages[int(m.group(1))] = link
+    return [pages[k] for k in sorted(pages)]
+
+
+def scrape_listing_page(url, max_items=15):
+    """
+    A page that lists many opportunities (e.g. a funder's "Funding" page):
+    AI picks the items out, then each item's own page is opened for the details.
+    Returns a list of payloads, or [] if the page is not a listing / no AI key.
+    """
+    from .ai_pipeline import opportunity_values_from_extracted
+    from .opportunity_research import research_opportunity
+    from .source_watch import _find_opportunities, fetch_page_text
+
+    if not os.environ.get("OPENAI_API_KEY"):
+        return []
+    links = []
+    text = fetch_page_text(url)
+    links = re.findall(r"\[link: ([^\]]+)\]", text)
+    items = []
+    for page_url in _page_urls(url, links):
+        page_text = text if page_url == url else fetch_page_text(page_url)
+        items += _find_opportunities(page_text, page_url)
+    payloads = []
+    today = timezone.localdate().isoformat()
+    for item in items[:max_items]:
+        if not isinstance(item, dict) or not item.get("title"):
+            continue
+        data = {k: ("" if v is None else str(v)) for k, v in item.items()}
+        if data.get("deadline") and data["deadline"] < today:
+            continue
+        if PostedOpportunity.objects.filter(title__iexact=data["title"].strip()).exists():
+            payloads.append({"title": data["title"].strip(), "_duplicate": True})
+            continue
+        if any(t in (data["title"] + " " + data.get("short_description", "")).lower() for t in EXCLUDED_ACADEMIC_TERMS):
+            continue
+        data = research_opportunity(data)   # open its own page / search for missing amounts, deadline, link
+        values = opportunity_values_from_extracted(data)
+        values["status"] = PostedOpportunity.Status.OPEN
+        payloads.append(values)
+    return payloads
 
 
 def run_opportunity_scraper(acting_user=None, custom_urls=None, max_items_per_feed=15):
@@ -616,6 +692,21 @@ def run_opportunity_scraper(acting_user=None, custom_urls=None, max_items_per_fe
             if not url:
                 continue
             try:
+                listing = scrape_listing_page(url)
+                if len(listing) >= 2:
+                    _watch_url(url, acting_user)
+                    for payload in listing:
+                        stats["scraped"] += 1
+                        if payload.get("_duplicate"):
+                            stats["skipped_duplicates"] += 1
+                            continue
+                        opp, created = ingest_opportunity(payload, posted_by=acting_user)
+                        if created:
+                            stats["created"] += 1
+                            stats["created_opportunities"].append(opp.title)
+                        else:
+                            stats["skipped_duplicates"] += 1
+                    continue
                 payload = scrape_webpage_opportunity(url)
                 if payload and not PostedOpportunity.objects.filter(title__iexact=payload["title"]).exists():
                     payload = enrich_payload(payload, url)

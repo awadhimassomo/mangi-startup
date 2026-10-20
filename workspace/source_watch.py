@@ -41,12 +41,12 @@ class _PageParser(HTMLParser):
 
 
 def fetch_page_text(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "MangiOpportunityWatcher/1.0"})
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        raw = resp.read(MAX_BYTES)
-        charset = resp.headers.get_content_charset() or "utf-8"
+    from .scraper_agent import http_get
+
+    resp = http_get(url, headers={"User-Agent": "Mozilla/5.0 MangiOpportunityWatcher/1.0"})
+    resp.raise_for_status()
     parser = _PageParser(url)
-    parser.feed(raw.decode(charset, errors="replace"))
+    parser.feed(resp.text)
     return " ".join(parser.parts)
 
 

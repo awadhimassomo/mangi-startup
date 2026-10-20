@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .source_watch import register_source_from_link, scan_source
 from .opportunity_research import read_screenshot
+from .ai_pipeline import opportunity_values_from_extracted
 from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
@@ -1377,36 +1378,6 @@ def posted_opportunity_extract(request):
     return JsonResponse({"data": data})
 
 
-def _opportunity_values_from_extracted(data):
-    """Turn raw AI strings into safe PostedOpportunity field values."""
-    values = {
-        "title": (data.get("title") or "Untitled opportunity (from screenshot)")[:255],
-        "funder_name": (data.get("funder_name") or "Unknown funder")[:255],
-        "opportunity_type": data.get("opportunity_type") or PostedOpportunity.OpportunityType.OTHER,
-        "short_description": data.get("short_description", ""),
-        "eligibility": data.get("eligibility", ""),
-        "currency": (data.get("currency") or "USD")[:10],
-        "geographic_focus": data.get("geographic_focus", "")[:255],
-        "sector_focus": data.get("sector_focus", "")[:255],
-        "tags": data.get("tags", "")[:255],
-    }
-    link = data.get("application_link", "").strip()
-    if link.startswith(("http://", "https://")) and len(link) <= 200:
-        values["application_link"] = link
-    for field in ("amount_min", "amount_max"):
-        try:
-            if data.get(field):
-                values[field] = Decimal(data[field].replace(",", ""))
-        except ArithmeticError:
-            pass
-    try:
-        if data.get("deadline"):
-            values["deadline"] = datetime.date.fromisoformat(data["deadline"])
-    except ValueError:
-        pass
-    return values
-
-
 @login_required
 def ops_quick_post(request):
     """Staff: upload one or more screenshots; AI creates a draft for each, ready to review."""
@@ -1432,7 +1403,7 @@ def ops_quick_post(request):
                 review_status=PostedOpportunity.ReviewStatus.PENDING,
                 status=PostedOpportunity.Status.OPEN,
                 poster_image=image,
-                **_opportunity_values_from_extracted(data),
+                **opportunity_values_from_extracted(data),
             )
             created.append(opp)
         for error in errors:
@@ -1712,18 +1683,19 @@ def ops_run_scraper(request):
 
     stats = run_opportunity_scraper(acting_user=request.user, custom_urls=custom_urls)
     
+    summary = (
+        f"{stats['scraped']} items analyzed, {stats['created']} new, "
+        f"{stats['skipped_duplicates']} already on the board, {stats['skipped_not_target']} not a match"
+    )
     if stats["created"] > 0:
         messages.success(
             request,
-            f"Scraper Agent finished: Ingested {stats['created']} new opportunities "
-            f"({stats['skipped_duplicates']} duplicates skipped). New discoveries are pending admin review."
+            f"Scraper Agent finished: {summary}. New discoveries are pending admin review.",
         )
     else:
-        messages.info(
-            request,
-            f"Scraper Agent finished: {stats['scraped']} items analyzed. No new opportunities found "
-            f"({stats['skipped_duplicates']} already exist in database)."
-        )
+        messages.info(request, f"Scraper Agent finished: {summary}. No new opportunities found.")
+    for error in stats["errors"][:3]:
+        messages.error(request, error)
 
     return redirect("ops_dashboard")
 
