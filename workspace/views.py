@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .source_watch import register_source_from_link, scan_source
 from .opportunity_research import read_screenshot
-from .ai_pipeline import is_individual_only, opportunity_values_from_extracted
+from .ai_pipeline import is_individual_only, is_not_for_tanzania, opportunity_values_from_extracted
 from .ai_pipeline import assess_posted_opportunity_fit, create_pipeline_from_posted_opportunity, run_matching_agent
 from .forms import (
     BudgetItemForm,
@@ -1435,6 +1435,12 @@ def ops_quick_post(request):
                 errors.append(
                     f"{image.name}: skipped, \"{data.get('title') or 'this post'}\" looks like it is for "
                     "individuals only. Mangi posts for organisations, NGOs and startups."
+                )
+                continue
+            if is_not_for_tanzania(data):
+                errors.append(
+                    f"{image.name}: skipped, \"{data.get('title') or 'this post'}\" is limited to other countries "
+                    "and Tanzanian organisations cannot apply."
                 )
                 continue
             image.seek(0)

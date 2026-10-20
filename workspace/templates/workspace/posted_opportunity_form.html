@@ -68,6 +68,8 @@
                 const dt = new DataTransfer(); dt.items.add(file); poster.files = dt.files;
                 status.textContent = json.data.audience === "individual"
                     ? "⚠ This looks like an opportunity for individuals only. Mangi posts for organisations, NGOs and startups. Check before saving."
+                    : json.data.tanzania_eligible === "no"
+                    ? "⚠ This looks limited to other countries, so Tanzanian organisations may not be able to apply. Check before saving."
                     : "Done — review the fields below, then save.";
             } catch (e) { status.textContent = e.message; }
             this.disabled = false;

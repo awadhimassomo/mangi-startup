@@ -253,14 +253,52 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 EXTRACT_FIELDS = (
     "title", "funder_name", "opportunity_type", "short_description", "eligibility",
     "amount_min", "amount_max", "currency", "deadline", "application_link",
-    "geographic_focus", "sector_focus", "tags", "audience",
+    "geographic_focus", "sector_focus", "tags", "audience", "tanzania_eligible",
 )
 
 AUDIENCE_RULE = (
     " audience must be 'organisation' if registered organisations, NGOs, companies, startups or founders "
     "building a venture can apply; 'individual' if ONLY individual people can apply (students, researchers, "
     "artists, job seekers, personal scholarships/fellowships/internships); or 'both'."
+    " tanzania_eligible must be 'yes' if organisations based in Tanzania can apply (the call names Tanzania, "
+    "East Africa/EAC, Africa-wide, the Commonwealth, developing countries or is global), 'no' if it is limited "
+    "to other specific countries, regions, states or counties (for example only Kenya, only Nigeria, a single "
+    "county), or 'unknown' if eligibility by location is not stated."
 )
+
+GLOBAL_TERMS = (
+    "global", "worldwide", "all countries", "any country", "international applicants", "developing countr",
+    "low- and middle-income", "low and middle income", "lmic", "sub-saharan", "sub saharan", "east africa",
+    "eastern africa", "eac", "across africa", "african countries", "africa-wide", "pan-african",
+    "commonwealth", "all nationalities", "global south",
+)
+OTHER_PLACES = (
+    "kenya", "uganda", "rwanda", "burundi", "ethiopia", "somalia", "south sudan", "nigeria", "ghana", "senegal",
+    "cameroon", "zambia", "zimbabwe", "malawi", "mozambique", "south africa", "namibia", "botswana", "egypt",
+    "morocco", "tunisia", "india", "pakistan", "bangladesh", "nepal", "philippines", "indonesia", "brazil",
+    "mexico", "colombia", "peru", "united states", "canada", "united kingdom",
+)
+
+
+def geo_restricted_elsewhere(text):
+    """True when the text is tied to other places and never mentions Tanzania or anything region-wide."""
+    t = (text or "").lower()
+    if "tanzania" in t:
+        return False
+    if any(term in t for term in GLOBAL_TERMS):
+        return False
+    return any(place in t for place in OTHER_PLACES)
+
+
+def is_not_for_tanzania(data):
+    """True if Tanzanian organisations cannot apply (AI verdict first, wording check as a fallback)."""
+    verdict = (data.get("tanzania_eligible") or "").strip().lower()
+    if verdict == "no":
+        return True
+    if verdict == "yes":
+        return False
+    text = " ".join(str(data.get(k, "")) for k in ("title", "short_description", "eligibility", "geographic_focus"))
+    return geo_restricted_elsewhere(text)
 
 INDIVIDUAL_TERMS = (
     "scholarship", "bursary", "internship", "vacancy", "job opening", "research fellow", "fellows program",

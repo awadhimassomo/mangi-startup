@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 from django.utils import timezone
 
 from .ai_pipeline import (
-    AUDIENCE_RULE, EXTRACT_FIELDS, ask_openai_json, is_individual_only, opportunity_values_from_extracted,
+    AUDIENCE_RULE, EXTRACT_FIELDS, ask_openai_json, is_individual_only, is_not_for_tanzania, opportunity_values_from_extracted,
 )
 from .models import OpportunitySource, PostedOpportunity
 
@@ -96,6 +96,8 @@ def scan_source(source):
                 if item["application_link"] in known_links or item["title"].lower() in known_titles:
                     continue
                 if is_individual_only(item):   # Mangi only posts for organisations, NGOs and startups
+                    continue
+                if is_not_for_tanzania(item):  # ...that Tanzanian organisations can actually apply to
                     continue
                 values = opportunity_values_from_extracted(item)
                 opp = PostedOpportunity.objects.create(

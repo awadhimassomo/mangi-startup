@@ -487,3 +487,35 @@ class ReviewQueueTests(TestCase):
             resp = self.client.post("/board/quick-post/", {"images": img}, follow=True)
         self.assertEqual(PostedOpportunity.objects.count(), 0)
         self.assertContains(resp, "individuals only")
+
+
+class TanzaniaEligibilityTests(TestCase):
+    def test_kenya_only_call_is_rejected_but_regional_ones_pass(self):
+        from .ai_pipeline import geo_restricted_elsewhere, is_not_for_tanzania
+        from .scraper_agent import is_eligible_for_tanzania_and_east_africa
+        ycaf = ("Youth Climate Action Fund 2026 supports youth-led organisations in Trans Nzoia County, Kenya. "
+                "Eligible applicants must operate in Trans Nzoia County.")
+        self.assertTrue(geo_restricted_elsewhere(ycaf))
+        self.assertFalse(is_eligible_for_tanzania_and_east_africa("YCAF", ycaf)[0])
+        self.assertFalse(geo_restricted_elsewhere("Open to startups in Kenya, Uganda and Tanzania"))
+        self.assertFalse(geo_restricted_elsewhere("Open to organisations across East Africa, e.g. Kenya"))
+        self.assertFalse(geo_restricted_elsewhere("Global call for climate startups"))
+        self.assertTrue(is_not_for_tanzania({"tanzania_eligible": "no", "title": "X"}))
+        self.assertFalse(is_not_for_tanzania({"tanzania_eligible": "yes", "title": "Kenya only?"}))
+        self.assertTrue(is_not_for_tanzania({"title": "Nigeria Startup Grant", "short_description": "for Nigerian startups in Nigeria"}))
+
+    def test_screenshot_for_other_country_is_skipped(self):
+        from unittest import mock
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from .models import PostedOpportunity
+        staff = get_user_model().objects.create_superuser("boss7", "b7@x.com", "pw")
+        self.client.force_login(staff)
+        buf = io.BytesIO(); Image.new("RGB", (4, 4)).save(buf, "PNG")
+        img = SimpleUploadedFile("k.png", buf.getvalue(), content_type="image/png")
+        data = {"title": "Kenya County Fund", "tanzania_eligible": "no", "audience": "organisation"}
+        with mock.patch("workspace.views.read_screenshot", return_value=data):
+            resp = self.client.post("/board/quick-post/", {"images": img}, follow=True)
+        self.assertEqual(PostedOpportunity.objects.count(), 0)
+        self.assertContains(resp, "Tanzanian organisations cannot apply")

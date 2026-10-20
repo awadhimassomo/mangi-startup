@@ -205,6 +205,12 @@ def is_eligible_for_tanzania_and_east_africa(title, content):
     """
     combined = (title + " " + content).lower()
 
+    # 0. Tied to another country/county (e.g. Kenya only) with no Tanzania or region-wide wording
+    from .ai_pipeline import geo_restricted_elsewhere
+
+    if geo_restricted_elsewhere(combined):
+        return False, "Limited to another country or region that does not include Tanzania"
+
     # 1. Check if strictly limited to other exclusive regions
     for dis in DISALLOWED_EXCLUSIVE_REGIONS:
         if dis in combined and "tanzania" not in combined and "africa" not in combined:
@@ -502,6 +508,12 @@ def enrich_payload(payload, article_url):
         ai = None
     if ai and (ai.get("audience") or "").strip().lower() == "individual":
         return None   # only individuals can apply: not for Mangi
+    from .ai_pipeline import geo_restricted_elsewhere, is_not_for_tanzania
+
+    if ai and is_not_for_tanzania(ai):
+        return None   # Tanzanian organisations cannot apply
+    if not ai and geo_restricted_elsewhere(text[:6000]):
+        return None
     if ai:
         for field in ("funder_name", "short_description", "eligibility", "geographic_focus", "sector_focus", "tags"):
             if ai.get(field):
@@ -646,7 +658,7 @@ def scrape_listing_page(url, max_items=15):
     AI picks the items out, then each item's own page is opened for the details.
     Returns a list of payloads, or [] if the page is not a listing / no AI key.
     """
-    from .ai_pipeline import is_individual_only, opportunity_values_from_extracted
+    from .ai_pipeline import is_individual_only, is_not_for_tanzania, opportunity_values_from_extracted
     from .opportunity_research import research_opportunity
     from .source_watch import _find_opportunities, fetch_page_text
 
@@ -665,7 +677,7 @@ def scrape_listing_page(url, max_items=15):
         if not isinstance(item, dict) or not item.get("title"):
             continue
         data = {k: ("" if v is None else str(v)) for k, v in item.items()}
-        if is_individual_only(data):
+        if is_individual_only(data) or is_not_for_tanzania(data):
             continue
         if data.get("deadline") and data["deadline"] < today:
             continue
