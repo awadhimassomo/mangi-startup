@@ -411,3 +411,21 @@ class ResearchTests(TestCase):
                 mock.patch.object(r, "_web_search_openai", side_effect=RuntimeError("no")), \
                 mock.patch.object(r, "_web_search_fallback", side_effect=RuntimeError("no")):
             self.assertEqual(r.research_opportunity(d)["title"], "X")
+
+
+class PosterLightboxTests(TestCase):
+    def test_poster_is_zoomable_for_admin_and_includes_lightbox(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import PostedOpportunity
+        import io
+        from PIL import Image
+        buf = io.BytesIO(); Image.new("RGB", (4, 4)).save(buf, "PNG")
+        staff = get_user_model().objects.create_superuser("boss4", "b4@x.com", "pw")
+        self.client.force_login(staff)
+        opp = PostedOpportunity.objects.create(
+            title="P", funder_name="F",
+            poster_image=SimpleUploadedFile("p.png", buf.getvalue(), content_type="image/png"))
+        resp = self.client.get(f"/board/{opp.pk}/")
+        self.assertContains(resp, 'class="zoomable"')
+        self.assertContains(resp, 'id="lb"')
+        opp.poster_image.delete(save=False)

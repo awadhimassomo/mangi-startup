@@ -81,7 +81,7 @@
             </div>
             {% if opp.poster_image %}
             <div style="margin-bottom:1rem;">
-                <img src="{{ opp.poster_image.url }}" alt="Current poster" style="max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
+                <img class="zoomable" src="{{ opp.poster_image.url }}" alt="Current poster" style="max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
                 <p class="hint" style="margin-top:0.4rem;">Upload a new image to replace the current poster.</p>
             </div>
             {% endif %}
