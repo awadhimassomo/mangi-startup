@@ -182,6 +182,23 @@ def build_readiness_summary(startup):
     }
 
 
+def sort_pipeline(opportunities):
+    """Needs-action first (nearest deadline on top), then applied, then selected/won, then lost; expired last."""
+    far = 10 ** 9
+
+    def key(o):
+        group = o.pipeline_group
+        if group in (0, 1):
+            order = o.deadline_date.toordinal() if o.deadline_date else far
+        elif group == 4:
+            order = -o.deadline_date.toordinal()
+        else:
+            order = -o.updated_at.timestamp()
+        return (group, order, o.name.lower())
+
+    return sorted(opportunities, key=key)
+
+
 def build_dashboard_metrics(startup):
     from .models import PostedOpportunity  # avoid circular at module level
     today = timezone.localdate()
@@ -190,7 +207,9 @@ def build_dashboard_metrics(startup):
 
     opportunities = startup.opportunities.all()
     active_statuses = FundingOpportunity.ACTIVE_STATUSES
-    active_opportunities = opportunities.filter(status__in=active_statuses)
+    active_opportunities = opportunities.filter(status__in=active_statuses).exclude(
+        status__in=FundingOpportunity.DEADLINE_ACTION_STATUSES, deadline_date__lt=today
+    )  # missed (expired, never applied) ones no longer count as pipeline
     weighted_pipeline = sum((opportunity.weighted_amount for opportunity in active_opportunities), Decimal("0.00"))
     readiness = build_readiness_summary(startup)
 

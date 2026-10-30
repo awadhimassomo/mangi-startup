@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}Exchange Rates{% endblock %}
 {% block page_title %}Exchange Rates (TZS){% endblock %}
 {% block content %}
@@ -21,7 +22,7 @@
                 {% for r in rates %}
                 <tr>
                     <td><strong>{{ r.currency_code }}</strong></td>
-                    <td>{{ r.rate_to_tzs|floatformat:2 }}</td>
+                    <td>{{ r.rate_to_tzs|floatformat:2|intcomma }}</td>
                     <td class="muted small">{{ r.rate_date }}</td>
                     <td class="muted small">{{ r.get_source_display }}</td>
                 </tr>

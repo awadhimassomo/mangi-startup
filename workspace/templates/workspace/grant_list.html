@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}Grants{% endblock %}
 {% block page_title %}Grant Records{% endblock %}
 {% block content %}
@@ -40,7 +41,7 @@
             </td>
             <td class="muted">{{ grant.funder_name }}</td>
             <td class="muted small">{{ grant.project_tag|default:"—" }}</td>
-            <td>{{ grant.currency }} {{ grant.total_amount|floatformat:0 }}</td>
+            <td>{{ grant.currency }} {{ grant.total_amount|floatformat:0|intcomma }}</td>
             <td class="muted small">{{ grant.start_date }} → {{ grant.end_date }}</td>
             <td>
                 <div class="progress-bar-wrap">

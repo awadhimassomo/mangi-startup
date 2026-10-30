@@ -1,4 +1,5 @@
 {% extends base_template|default:"workspace/base.html" %}
+{% load humanize %}
 {% block title %}{{ opp.title }}{% endblock %}
 {% block page_title %}{{ opp.title }}{% endblock %}
 {% block content %}
@@ -51,9 +52,9 @@
                 <dd>
                     {% if opp.amount_min or opp.amount_max %}
                         {{ opp.currency }}
-                        {% if opp.amount_min %}{{ opp.amount_min|floatformat:0 }}{% endif %}
+                        {% if opp.amount_min %}{{ opp.amount_min|floatformat:0|intcomma }}{% endif %}
                         {% if opp.amount_min and opp.amount_max %} – {% endif %}
-                        {% if opp.amount_max %}{{ opp.amount_max|floatformat:0 }}{% endif %}
+                        {% if opp.amount_max %}{{ opp.amount_max|floatformat:0|intcomma }}{% endif %}
                     {% else %}—{% endif %}
                 </dd>
             </div>

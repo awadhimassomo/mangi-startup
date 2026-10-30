@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}Opportunities{% endblock %}
 {% block page_title %}Fundraising Opportunities{% endblock %}
 {% block content %}
@@ -17,16 +18,27 @@
 </div>
 {% endif %}
 
+<style>.pipe-group td { background:#f8fafc; font-size:0.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:0.5rem 0.75rem; border-top:1px solid var(--border); }</style>
 <section class="panel">
     <div class="panel-header">
         <h2>
             Pipeline tracker
             {% if active_type %}<span class="muted small">— {{ active_type|capfirst }}</span>{% endif %}
         </h2>
-        <a href="{% url 'opportunity_add' %}" class="button">Add opportunity</a>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            {% if expired_count %}
+                {% if show_expired %}
+                    <a href="?{% if active_type %}type={{ active_type }}&{% endif %}{% if active_status %}status={{ active_status }}{% endif %}" class="button button-secondary button-sm">Hide {{ expired_count }} expired</a>
+                {% else %}
+                    <a href="?expired=1{% if active_type %}&type={{ active_type }}{% endif %}{% if active_status %}&status={{ active_status }}{% endif %}" class="button button-secondary button-sm">Show {{ expired_count }} expired</a>
+                {% endif %}
+            {% endif %}
+            <a href="{% url 'opportunity_add' %}" class="button">Add opportunity</a>
+        </div>
     </div>
     <form method="get" class="filter-bar">
         {% if active_type %}<input type="hidden" name="type" value="{{ active_type }}">{% endif %}
+        {% if show_expired %}<input type="hidden" name="expired" value="1">{% endif %}
         <select name="status">
             <option value="">All statuses</option>
             {% for value, label in status_choices %}
@@ -54,7 +66,10 @@
             </thead>
             <tbody>
                 {% for item in opportunities %}
-                    <tr>
+                    {% ifchanged item.pipeline_group %}
+                    <tr class="pipe-group"><td colspan="8">{{ item.pipeline_group_label }}</td></tr>
+                    {% endifchanged %}
+                    <tr {% if item.pipeline_group == 4 %}style="opacity:.55"{% endif %}>
                         <td><a href="{{ item.get_absolute_url }}"><strong>{{ item.name }}</strong></a></td>
                         <td class="muted small">{{ item.funder_name }}</td>
                         <td>
@@ -64,7 +79,7 @@
                             </a>
                         </td>
                         <td><span class="badge badge-status-{{ item.status }}">{{ item.get_status_display }}</span></td>
-                        <td class="muted small">{% if item.amount %}{{ item.currency }} {{ item.amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                        <td class="muted small">{% if item.amount %}{{ item.currency }} {{ item.amount|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
                         <td>
                             {% if item.deadline_date %}
                                 <span class="badge {% if item.is_overdue %}badge-deadline-overdue{% elif item.is_deadline_soon %}badge-deadline-soon{% else %}badge-neutral{% endif %}">

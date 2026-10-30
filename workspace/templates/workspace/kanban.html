@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}Pipeline Kanban{% endblock %}
 {% block page_title %}Pipeline Kanban{% endblock %}
 {% block content %}
@@ -6,6 +7,10 @@
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
         <a href="{% url 'opportunity_list' %}" class="button button-secondary button-sm">List view</a>
         <a href="{% url 'calendar' %}" class="button button-secondary button-sm">Calendar</a>
+        {% if expired_count %}
+            {% if show_expired %}<a href="{% url 'kanban' %}" class="button button-secondary button-sm">Hide {{ expired_count }} expired</a>
+            {% else %}<a href="?expired=1" class="button button-secondary button-sm">Show {{ expired_count }} expired</a>{% endif %}
+        {% endif %}
     </div>
     <a href="{% url 'opportunity_add' %}" class="button">Add opportunity</a>
 </div>
@@ -28,7 +33,7 @@
                     {% endif %}
                 </div>
                 {% if opp.amount %}
-                    <div class="kanban-card-amount">{{ opp.currency }} {{ opp.amount }}</div>
+                    <div class="kanban-card-amount">{{ opp.currency }} {{ opp.amount|floatformat:0|intcomma }}</div>
                 {% endif %}
                 {% if opp.tag_list %}
                     <div style="margin-top:0.4rem;display:flex;gap:0.25rem;flex-wrap:wrap;">

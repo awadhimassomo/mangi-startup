@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}{{ plan.title }}{% endblock %}
 {% block page_title %}{{ plan.title }}{% endblock %}
 {% block content %}
@@ -8,11 +9,11 @@
             <h2>Budget summary</h2>
         </div>
         <dl class="detail-grid">
-            <div><dt>Total available</dt><dd>{{ plan.total_amount }} {{ plan.currency }}</dd></div>
-            <div><dt>Planned total</dt><dd><span class="budget-money">{{ plan.planned_total }}</span></dd></div>
-            <div><dt>Actual total</dt><dd><span class="budget-money">{{ plan.actual_total }}</span></dd></div>
-            <div><dt>Remaining</dt><dd><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount }}</span></dd></div>
-            <div><dt>Funding gap</dt><dd><span class="badge badge-budget-{{ plan.funding_gap_state }}">{{ plan.funding_gap }}</span></dd></div>
+            <div><dt>Total available</dt><dd>{{ plan.total_amount|floatformat:2|intcomma }} {{ plan.currency }}</dd></div>
+            <div><dt>Planned total</dt><dd><span class="budget-money">{{ plan.planned_total|floatformat:2|intcomma }}</span></dd></div>
+            <div><dt>Actual total</dt><dd><span class="budget-money">{{ plan.actual_total|floatformat:2|intcomma }}</span></dd></div>
+            <div><dt>Remaining</dt><dd><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount|floatformat:2|intcomma }}</span></dd></div>
+            <div><dt>Funding gap</dt><dd><span class="badge badge-budget-{{ plan.funding_gap_state }}">{{ plan.funding_gap|floatformat:2|intcomma }}</span></dd></div>
         </dl>
         <p>{{ plan.notes|default:"No notes yet." }}</p>
     </article>
@@ -38,8 +39,8 @@
                 {% for item in plan.items.all %}
                     <tr>
                         <td>{{ item.get_category_display }}</td>
-                        <td>{{ item.planned_amount }}</td>
-                        <td><span class="badge badge-spend-{{ item.spend_state }}">{{ item.actual_amount }}</span></td>
+                        <td>{{ item.planned_amount|floatformat:2|intcomma }}</td>
+                        <td><span class="badge badge-spend-{{ item.spend_state }}">{{ item.actual_amount|floatformat:2|intcomma }}</span></td>
                         <td><span class="badge badge-priority-{{ item.priority }}">{{ item.get_priority_display }}</span></td>
                     </tr>
                 {% empty %}

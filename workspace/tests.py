@@ -446,7 +446,7 @@ class ListingScrapeTests(TestCase):
         with mock.patch.dict("os.environ", {"OPENAI_API_KEY": "x"}), \
                 mock.patch("workspace.source_watch.fetch_page_text", return_value="text [link: https://x.org/1]"), \
                 mock.patch("workspace.source_watch._find_opportunities", return_value=items), \
-                mock.patch("workspace.opportunity_research.research_opportunity", side_effect=lambda d: d):
+                mock.patch("workspace.opportunity_research.research_opportunity", side_effect=lambda d: d),                 mock.patch.object(sa, "fetch_rss_feed", return_value=[]):   # never hit the real feeds in tests
             stats = sa.run_opportunity_scraper(custom_urls=["https://x.org/funding"])
         self.assertEqual(stats["created"], 2)
         self.assertEqual(PostedOpportunity.objects.filter(review_status="pending").count(), 2)
@@ -519,3 +519,44 @@ class TanzaniaEligibilityTests(TestCase):
             resp = self.client.post("/board/quick-post/", {"images": img}, follow=True)
         self.assertEqual(PostedOpportunity.objects.count(), 0)
         self.assertContains(resp, "Tanzanian organisations cannot apply")
+
+
+class PipelineOrderingTests(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import FundingOpportunity, Startup, StartupMember
+        self.user = get_user_model().objects.create_user("founder", "f@x.com", "pw")
+        self.startup = Startup.objects.create(name="S", country="TZ")
+        StartupMember.objects.create(startup=self.startup, user=self.user, role="startup_admin", is_active=True)
+        today = timezone.localdate()
+        mk = lambda name, status, days, amount=0: FundingOpportunity.objects.create(
+            startup=self.startup, name=name, funder_name="F", status=status, amount=amount,
+            deadline_date=today + timedelta(days=days) if days is not None else None,
+            created_by=self.user, updated_by=self.user)
+        self.far = mk("Far todo", "researching", 40)
+        self.near = mk("Near todo", "in_progress", 3, 129500)
+        self.nodate = mk("No date todo", "qualifying", None)
+        self.applied = mk("Applied one", "submitted", 10)
+        self.selected = mk("Selected one", "selected", -5)   # past deadline but already applied: must stay
+        self.lost = mk("Lost one", "lost", -20)
+        self.expired = mk("Expired one", "researching", -2)
+        self.client.force_login(self.user)
+
+    def test_order_hides_expired_and_formats_numbers(self):
+        resp = self.client.get("/opportunities/")
+        names = [o.name for o in resp.context["opportunities"]]
+        self.assertEqual(names, ["Near todo", "Far todo", "No date todo", "Applied one", "Selected one", "Lost one"])
+        self.assertEqual(resp.context["expired_count"], 1)
+        self.assertContains(resp, "129,500")
+        self.assertNotContains(resp, "Expired one")
+        shown = self.client.get("/opportunities/?expired=1")
+        self.assertEqual([o.name for o in shown.context["opportunities"]][-1], "Expired one")
+
+    def test_kanban_hides_expired_and_dashboard_ignores_it(self):
+        resp = self.client.get("/opportunities/kanban/")
+        researching = [c for c in resp.context["board"] if c["value"] == "researching"][0]["opportunities"]
+        self.assertEqual([o.name for o in researching], ["Far todo"])
+        self.assertContains(resp, "129,500")
+        from .utils import build_dashboard_metrics
+        self.assertEqual(build_dashboard_metrics(self.startup)["active_opportunities_count"], 5)

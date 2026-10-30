@@ -80,6 +80,7 @@ from .utils import (
     get_current_membership,
     get_current_startup,
     log_activity,
+    sort_pipeline,
 )
 
 logger = logging.getLogger(__name__)
@@ -195,11 +196,18 @@ def opportunity_list_view(request):
         .annotate(total=Count("id"))
         .order_by("opportunity_type")
     )
+    items = list(opportunities)
+    expired_count = sum(1 for o in items if o.is_overdue)
+    show_expired = request.GET.get("expired") == "1"
+    if not show_expired:
+        items = [o for o in items if not o.is_overdue]
     return render(
         request,
         "workspace/opportunity_list.html",
         {
-            "opportunities": opportunities,
+            "opportunities": sort_pipeline(items),
+            "expired_count": expired_count,
+            "show_expired": show_expired,
             "status_choices": FundingOpportunity.Status.choices,
             "type_choices": FundingOpportunity.OpportunityType.choices,
             "type_counts": type_counts,
@@ -506,17 +514,22 @@ def kanban_view(request):
     startup, membership, redirect_response = require_startup_access(request)
     if redirect_response:
         return redirect_response
+    show_expired = request.GET.get("expired") == "1"
+    all_items = list(startup.opportunities.all())
+    expired_count = sum(1 for o in all_items if o.is_overdue)
     board = [
         {
             "value": value,
             "label": label,
-            "opportunities": list(
-                startup.opportunities.filter(status=value).order_by("deadline_date")
+            "opportunities": sort_pipeline(
+                [o for o in all_items if o.status == value and (show_expired or not o.is_overdue)]
             ),
         }
         for value, label in FundingOpportunity.Status.choices
     ]
     return render(request, "workspace/kanban.html", {
+        "expired_count": expired_count,
+        "show_expired": show_expired,
         "board": board,
         "stages": FundingOpportunity.Status.choices,
         "membership": membership,

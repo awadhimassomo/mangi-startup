@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}{{ opportunity.name }}{% endblock %}
 {% block page_title %}{{ opportunity.name }}{% endblock %}
 {% block content %}
@@ -92,9 +93,9 @@
     <article class="panel">
         <div class="panel-header"><h2>Financials &amp; timeline</h2></div>
         <dl class="detail-grid">
-            <div><dt>Amount range</dt><dd>{{ opportunity.currency }} {{ opportunity.amount_min }} &ndash; {{ opportunity.amount }}</dd></div>
+            <div><dt>Amount range</dt><dd>{{ opportunity.currency }} {{ opportunity.amount_min|floatformat:0|intcomma }} &ndash; {{ opportunity.amount|floatformat:0|intcomma }}</dd></div>
             <div><dt>Win probability</dt><dd>{{ opportunity.probability }}%</dd></div>
-            <div><dt>Weighted value</dt><dd>{{ opportunity.currency }} {{ opportunity.weighted_amount }}</dd></div>
+            <div><dt>Weighted value</dt><dd>{{ opportunity.currency }} {{ opportunity.weighted_amount|floatformat:0|intcomma }}</dd></div>
             <div>
                 <dt>Deadline</dt>
                 <dd>

@@ -1,4 +1,5 @@
 {% extends "workspace/base.html" %}
+{% load humanize %}
 {% block title %}Budgets{% endblock %}
 {% block page_title %}Budget Allocation{% endblock %}
 {% block content %}
@@ -23,9 +24,9 @@
                     <tr>
                         <td><a href="{% url 'budget_detail' plan.pk %}">{{ plan.title }}</a></td>
                         <td>{{ plan.funding_source|default:"-" }}</td>
-                        <td>{{ plan.total_amount }} {{ plan.currency }}</td>
-                        <td><span class="budget-money">{{ plan.planned_total }}</span></td>
-                        <td><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount }}</span></td>
+                        <td>{{ plan.total_amount|floatformat:2|intcomma }} {{ plan.currency }}</td>
+                        <td><span class="budget-money">{{ plan.planned_total|floatformat:2|intcomma }}</span></td>
+                        <td><span class="badge badge-budget-{{ plan.remaining_state }}">{{ plan.remaining_amount|floatformat:2|intcomma }}</span></td>
                     </tr>
                 {% empty %}
                     <tr><td colspan="5">No budget plans yet.</td></tr>

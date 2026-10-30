@@ -280,6 +280,31 @@ class FundingOpportunity(models.Model):
         days_left = (self.deadline_date - timezone.localdate()).days
         return 0 <= days_left <= 14
 
+    PIPELINE_GROUP_LABELS = {
+        0: "To do: not applied yet (nearest deadline first)",
+        1: "Applied: waiting for a decision",
+        2: "Selected / Won",
+        3: "Closed: lost or withdrawn",
+        4: "Expired: deadline passed before applying",
+    }
+
+    @property
+    def pipeline_group(self):
+        """0 needs action, 1 applied, 2 selected/won, 3 lost/withdrawn, 4 expired without applying."""
+        if self.is_overdue:
+            return 4
+        if self.status in self.DEADLINE_ACTION_STATUSES:
+            return 0
+        if self.status in ("submitted", "under_review"):
+            return 1
+        if self.status in ("selected", "won"):
+            return 2
+        return 3
+
+    @property
+    def pipeline_group_label(self):
+        return self.PIPELINE_GROUP_LABELS[self.pipeline_group]
+
     @property
     def tag_list(self):
         return [t.strip() for t in self.tags.split(",") if t.strip()]
